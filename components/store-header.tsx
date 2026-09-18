@@ -46,28 +46,28 @@ export function StoreHeader() {
       <button className="mobile-menu-backdrop" aria-label="Close menu" onClick={()=>setMenuOpen(false)}/>
       <aside className="mobile-menu" aria-label="Menu">
         <div className="mobile-menu-head">
-          <Link className="brand" href="/" onClick={()=>setOpen(false)}>NIMA.</Link>
-          <button className="icon-btn" onClick={()=>setOpen(false)} aria-label="Close menu"><X size={19}/></button>
+          <Link className="brand" href="/" onClick={()=>setMenuOpen(false)}>NIMA.</Link>
+          <button className="icon-btn" onClick={()=>setMenuOpen(false)} aria-label="Close menu"><X size={19}/></button>
         </div>
 
         <div className="mobile-menu-links">
           <div className="eyebrow">Store</div>
-          <Link href="/shop" onClick={()=>setOpen(false)}>Shop all</Link>
-          <Link href="/about" onClick={()=>setOpen(false)}>About NIMA</Link>
-          <Link href="/contact" onClick={()=>setOpen(false)}>Contact & support</Link>
-          <Link href="/cart" onClick={()=>setOpen(false)}>Shopping bag {count>0&&`(${count})`}</Link><div className="menu-theme-row"><span>Theme</span><ThemeToggle /></div>
+          <Link href="/shop" onClick={()=>setMenuOpen(false)}>Shop all</Link>
+          <Link href="/about" onClick={()=>setMenuOpen(false)}>About NIMA</Link>
+          <Link href="/contact" onClick={()=>setMenuOpen(false)}>Contact & support</Link>
+          <Link href="/cart" onClick={()=>setMenuOpen(false)}>Shopping bag {count>0&&`(${count})`}</Link><div className="menu-theme-row"><span>Theme</span><ThemeToggle /></div>
 
           <div className="eyebrow menu-rule">Policies</div>
-          <Link href="/privacy" onClick={()=>setOpen(false)}>Privacy policy</Link>
-          <Link href="/terms" onClick={()=>setOpen(false)}>Terms & conditions</Link>
-          <Link href="/refund-policy" onClick={()=>setOpen(false)}>Refund & returns</Link>
-          <Link href="/cookies" onClick={()=>setOpen(false)}>Cookies & storage</Link>
-          <Link href="/accessibility" onClick={()=>setOpen(false)}>Accessibility</Link>
+          <Link href="/privacy" onClick={()=>setMenuOpen(false)}>Privacy policy</Link>
+          <Link href="/terms" onClick={()=>setMenuOpen(false)}>Terms & conditions</Link>
+          <Link href="/refund-policy" onClick={()=>setMenuOpen(false)}>Refund & returns</Link>
+          <Link href="/cookies" onClick={()=>setMenuOpen(false)}>Cookies & storage</Link>
+          <Link href="/accessibility" onClick={()=>setMenuOpen(false)}>Accessibility</Link>
         </div>
 
         <div className="mobile-menu-foot">
           <span>© {new Date().getFullYear()} NIMA COLLECTION</span>
-          <Link href="/admin/login" onClick={()=>setOpen(false)}>Staff sign in</Link>
+          <Link href="/admin/login" onClick={()=>setMenuOpen(false)}>Staff sign in</Link>
         </div>
       </aside>
     </div>
