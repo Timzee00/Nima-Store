@@ -62,3 +62,53 @@
 .helper-text{display:block;color:var(--muted);font-size:11px;line-height:1.5;margin-top:5px}
 .mobile-menu-wrap:not(.open) .mobile-menu,.mobile-menu-wrap:not(.open) .mobile-menu-backdrop{visibility:hidden}
 .mobile-menu-wrap.open .mobile-menu,.mobile-menu-wrap.open .mobile-menu-backdrop{visibility:visible}
+
+.theme-toggle{width:42px;height:42px;border:1px solid var(--line);border-radius:50%;background:var(--control);color:var(--ink);display:grid;place-items:center;transition:transform .2s ease,background .2s ease,border-color .2s ease}
+.theme-toggle:hover{transform:translateY(-1px)}
+.menu-theme-row{display:none}
+.consent-links{margin-top:8px!important}
+html[data-theme="dark"]{
+  --ink:#f4f1eb;--muted:#a7a098;--paper:#11100f;--card:#1b1917;--line:#37332e;--accent:#ff765d;--shadow:0 18px 60px rgba(0,0,0,.36);--control:#211f1c
+}
+html[data-theme="dark"] body{background:var(--paper);color:var(--ink)}
+html[data-theme="dark"] .site-header{background:rgba(17,16,15,.84);border-color:rgba(244,241,235,.09)}
+html[data-theme="dark"] .searchbar input,
+html[data-theme="dark"] .pill,
+html[data-theme="dark"] .small-add,
+html[data-theme="dark"] .field input,
+html[data-theme="dark"] .field textarea,
+html[data-theme="dark"] .field select{background:#1b1917;color:var(--ink);border-color:var(--line)}
+html[data-theme="dark"] .searchbar input::placeholder,
+html[data-theme="dark"] .field input::placeholder,
+html[data-theme="dark"] .field textarea::placeholder{color:#77716b}
+html[data-theme="dark"] .product-card,
+html[data-theme="dark"] .card{background:var(--card);border-color:rgba(244,241,235,.08)}
+html[data-theme="dark"] .product-image,
+html[data-theme="dark"] .cart-thumb,
+html[data-theme="dark"] .detail-image{background:#24211e}
+html[data-theme="dark"] .icon-btn{background:transparent;border-color:var(--line);color:var(--ink)}
+html[data-theme="dark"] .cart-drawer{background:var(--paper)}
+html[data-theme="dark"] .footer{border-color:var(--line)}
+html[data-theme="dark"] .footer p,
+html[data-theme="dark"] .footer a{color:var(--muted)}
+html[data-theme="dark"] .story-card:not(.dark){background:var(--card)}
+html[data-theme="dark"] .admin-shell{background:#0f0e0d}
+html[data-theme="dark"] .admin-card,
+html[data-theme="dark"] .stat{background:#191816;border-color:#302d29}
+html[data-theme="dark"] .table th,
+html[data-theme="dark"] .table td{border-color:#2a2723}
+html[data-theme="dark"] .login-card{background:var(--card)}
+html[data-theme="dark"] .policy-section{border-color:var(--line)}
+html[data-theme="dark"] .policy-section p{color:#c0bab3}
+html[data-theme="dark"] .mobile-menu{background:var(--paper)}
+html[data-theme="dark"] .consent-banner{background:#f4f1eb;color:#151311}
+html[data-theme="dark"] .consent-banner .eyebrow,
+html[data-theme="dark"] .consent-banner p{color:#625c56}
+html[data-theme="dark"] .consent-banner .btn.secondary{color:#151311;border-color:#cfc8bf}
+html[data-theme="dark"] .consent-banner a{color:#151311}
+@media(max-width:680px){
+  .menu-theme-row{display:flex;align-items:center;justify-content:space-between;padding-top:4px}
+  .menu-theme-row span{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.11em}
+  .menu-theme-row .theme-toggle{width:40px;height:40px}
+  .nav-actions .theme-toggle{width:40px;height:40px}
+}
