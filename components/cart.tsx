@@ -21,6 +21,7 @@ type CartContextValue = {
   change: (id: string, delta: number) => void;
   remove: (id: string) => void;
   removeMany: (ids: string[]) => void;
+  syncItems: (updates: { fromId: string; product: { id: string; name: string; price: number; image: string } }[]) => void;
   clear: () => void;
   open: () => void;
 };
@@ -76,6 +77,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           })
         ),
       remove: (id) => setItems((current) => current.filter((item) => item.productId !== id)),
+      syncItems: (updates) => {
+        if (!updates.length) return;
+        const byOldId = new Map(updates.map((update) => [update.fromId, update.product]));
+        setItems((current) => current.map((item) => {
+          const product = byOldId.get(item.productId);
+          return product ? { ...item, productId: product.id, name: product.name, price: product.price, image: product.image || item.image } : item;
+        }));
+      },
       removeMany: (ids) => {
         const blocked = new Set(ids);
         setItems((current) => current.filter((item) => !blocked.has(item.productId)));
@@ -184,7 +193,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function CheckoutForm() {
-  const { items, subtotal, clear, removeMany } = useCart();
+  const { items, subtotal, clear, removeMany, syncItems } = useCart();
   const [busy, setBusy] = useState(false);
   const [checking, setChecking] = useState(true);
   const [consent, setConsent] = useState(false);
@@ -206,7 +215,7 @@ export function CheckoutForm() {
         const response = await fetch("/api/cart/validate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ids: items.map((item) => item.productId) }),
+          body: JSON.stringify({ items: items.map((item) => ({ id: item.productId, name: item.name })) }),
         });
 
         const data = await response.json();
@@ -214,6 +223,12 @@ export function CheckoutForm() {
         if (cancelled) return;
         if (!response.ok) {
           throw new Error(data.error || "We couldn't refresh your bag.");
+        }
+
+        if (Array.isArray(data.replacements) && data.replacements.length) {
+          removeMany([]);
+          syncItems(data.replacements);
+          setNotice("We refreshed your bag with the latest product information.");
         }
 
         const unavailableIds = [
