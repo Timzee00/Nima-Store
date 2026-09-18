@@ -1,0 +1,1 @@
+import Link from"next/link";export default function Success(){return <main className="login-page"><div className="login-card"><div className="eyebrow">NIMA COLLECTION</div><h1>Order received.</h1><p>Your order has been saved. NIMA will follow up with you to confirm delivery.</p><Link className="btn" href="/shop">Continue shopping</Link></div></main>}
