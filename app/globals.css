@@ -58,3 +58,5 @@
 .consent-check{display:flex;align-items:flex-start;gap:9px;font-size:11px;color:var(--muted);line-height:1.5;padding:4px 0}
 .consent-check input{margin-top:3px;flex:0 0 auto}
 .consent-check a{text-decoration:underline;color:var(--ink)}
+
+.helper-text{display:block;color:var(--muted);font-size:11px;line-height:1.5;margin-top:5px}
