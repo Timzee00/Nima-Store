@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { useCart } from "./cart";
 
 export function StoreHeader() {
-  const { count } = useCart();
+  const { count, open } = useCart();
   const [open,setOpen] = useState(false);
 
   useEffect(() => {
@@ -31,7 +31,7 @@ export function StoreHeader() {
           <Link className="icon-btn desktop-only" href="/shop" aria-label="Search products">
             <Search size={18}/>
           </Link>
-          <Link className="icon-btn" href="/cart" aria-label={count ? `Open shopping bag with ${count} items` : "Open shopping bag"}>
+          <button className="icon-btn" onClick={open} aria-label={count ? `Open shopping bag with ${count} items` : "Open shopping bag"}>
             <ShoppingBag size={18}/>
             {count>0&&<span className="cart-count" aria-hidden="true">{count}</span>}
           </Link>
