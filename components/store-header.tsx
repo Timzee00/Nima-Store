@@ -6,20 +6,20 @@ import { useEffect, useState } from "react";
 import { useCart } from "./cart";
 
 export function StoreHeader() {
-  const { count, open } = useCart();
-  const [open,setOpen] = useState(false);
+  const { count, open:openCart } = useCart();
+  const [menuOpen,setMenuOpen] = useState(false);
 
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") setMenuOpen(false); };
     window.addEventListener("keydown", onKey);
-    document.body.style.overflow = open ? "hidden" : "";
+    document.body.style.overflow = menuOpen ? "hidden" : "";
     return () => { document.body.style.overflow = ""; window.removeEventListener("keydown", onKey); };
-  }, [open]);
+  }, [menuOpen]);
 
   return <>
     <header className="site-header">
       <div className="container nav">
-        <Link className="brand" href="/" onClick={()=>setOpen(false)}>NIMA.</Link>
+        <Link className="brand" href="/" onClick={()=>setMenuOpen(false)}>NIMA.</Link>
 
         <nav className="nav-links" aria-label="Primary navigation">
           <Link href="/shop">Shop</Link>
@@ -31,19 +31,19 @@ export function StoreHeader() {
           <Link className="icon-btn desktop-only" href="/shop" aria-label="Search products">
             <Search size={18}/>
           </Link>
-          <button className="icon-btn" onClick={open} aria-label={count ? `Open shopping bag with ${count} items` : "Open shopping bag"}>
+          <button className="icon-btn" onClick={openCart} aria-label={count ? `Open shopping bag with ${count} items` : "Open shopping bag"}>
             <ShoppingBag size={18}/>
             {count>0&&<span className="cart-count" aria-hidden="true">{count}</span>}
           </Link>
-          <button className="icon-btn menu-trigger" onClick={()=>setOpen(true)} aria-label="Open menu" aria-expanded={open}>
+          <button className="icon-btn menu-trigger" onClick={()=>setMenuOpen(true)} aria-label="Open menu" aria-expanded={menuOpen}>
             <Menu size={19}/>
           </button>
         </div>
       </div>
     </header>
 
-    <div className={"mobile-menu-wrap "+(open?"open":"")} aria-hidden={!open}>
-      <button className="mobile-menu-backdrop" aria-label="Close menu" onClick={()=>setOpen(false)}/>
+    <div className={"mobile-menu-wrap "+(menuOpen?"open":"")} aria-hidden={!menuOpen}>
+      <button className="mobile-menu-backdrop" aria-label="Close menu" onClick={()=>setMenuOpen(false)}/>
       <aside className="mobile-menu" aria-label="Menu">
         <div className="mobile-menu-head">
           <Link className="brand" href="/" onClick={()=>setOpen(false)}>NIMA.</Link>
