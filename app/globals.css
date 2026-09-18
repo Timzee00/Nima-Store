@@ -60,3 +60,5 @@
 .consent-check a{text-decoration:underline;color:var(--ink)}
 
 .helper-text{display:block;color:var(--muted);font-size:11px;line-height:1.5;margin-top:5px}
+.mobile-menu-wrap:not(.open) .mobile-menu,.mobile-menu-wrap:not(.open) .mobile-menu-backdrop{visibility:hidden}
+.mobile-menu-wrap.open .mobile-menu,.mobile-menu-wrap.open .mobile-menu-backdrop{visibility:visible}
