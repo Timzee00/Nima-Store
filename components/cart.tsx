@@ -47,6 +47,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (!hydrated) return;
     try {
       localStorage.setItem("nima-cart", JSON.stringify(items));
     } catch {}
@@ -97,7 +98,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       clear: () => setItems([]),
       open: () => setOpen(true),
     };
-  }, [items]);
+  }, [items, hydrated]);
 
   return (
     <CartContext.Provider value={value}>
