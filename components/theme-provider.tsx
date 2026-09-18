@@ -3,7 +3,6 @@ import { createContext, useContext, useEffect, useState } from "react";
 
 type Theme="light"|"dark";
 type ThemeContextValue={theme:Theme;toggle:()=>void};
-
 const ThemeContext=createContext<ThemeContextValue|null>(null);
 
 function hasPreferenceConsent(){
@@ -11,7 +10,8 @@ function hasPreferenceConsent(){
 }
 function readThemeCookie(){
   const item=document.cookie.split("; ").find(x=>x.startsWith("nima_theme="));
-  return item?.split("=")[1] as Theme|undefined;
+  const value=item?.split("=")[1];
+  return value==="light"||value==="dark"?value:undefined;
 }
 function applyTheme(theme:Theme){
   document.documentElement.dataset.theme=theme;
@@ -22,24 +22,29 @@ export function ThemeProvider({children}:{children:React.ReactNode}){
   const [theme,setTheme]=useState<Theme>("light");
 
   useEffect(()=>{
-    let next=readThemeCookie();
-    if(!next){
-      try {
-        const stored=localStorage.getItem("nima-theme");
-        if(stored==="light"||stored==="dark") next=stored;
-      } catch {}
+    let next:Theme|undefined;
+    if(hasPreferenceConsent()){
+      next=readThemeCookie();
+      if(!next){
+        try{
+          const stored=localStorage.getItem("nima-theme");
+          if(stored==="light"||stored==="dark")next=stored;
+        }catch{}
+      }
     }
-    if(!next) next=window.matchMedia?.("(prefers-color-scheme: dark)").matches?"dark":"light";
+    if(!next)next=window.matchMedia?.("(prefers-color-scheme: dark)").matches?"dark":"light";
     setTheme(next);
     applyTheme(next);
 
     const sync=()=>{
-      const consent=hasPreferenceConsent();
-      const cookie=readThemeCookie();
-      if(consent&&cookie==="light"||consent&&cookie==="dark"){
-        setTheme(cookie);
-        applyTheme(cookie);
+      if(!hasPreferenceConsent()){
+        const fallback=window.matchMedia?.("(prefers-color-scheme: dark)").matches?"dark":"light";
+        setTheme(fallback);
+        applyTheme(fallback);
+        return;
       }
+      const saved=readThemeCookie();
+      if(saved){setTheme(saved);applyTheme(saved);}
     };
     window.addEventListener("nima-consent-change",sync);
     return()=>window.removeEventListener("nima-consent-change",sync);
@@ -57,9 +62,8 @@ export function ThemeProvider({children}:{children:React.ReactNode}){
 
   return <ThemeContext.Provider value={{theme,toggle}}>{children}</ThemeContext.Provider>;
 }
-
 export function useTheme(){
   const value=useContext(ThemeContext);
-  if(!value) throw new Error("useTheme must be used inside ThemeProvider");
+  if(!value)throw new Error("useTheme must be used inside ThemeProvider");
   return value;
 }
