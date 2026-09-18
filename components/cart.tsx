@@ -5,7 +5,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 export type CartItem = { productId:string; name:string; price:number; image:string; quantity:number };
-type Ctx = { items:CartItem[]; count:number; subtotal:number; add:(i:Omit<CartItem,"quantity">,q?:number)=>void; change:(id:string,d:number)=>void; remove:(id:string)=>void; open:()=>void };
+type Ctx = { items:CartItem[]; count:number; subtotal:number; add:(i:Omit<CartItem,"quantity">,q?:number)=>void; change:(id:string,d:number)=>void; remove:(id:string)=>void; clear:()=>void; open:()=>void };
 const CartContext=createContext<Ctx|null>(null);
 
 export function CartProvider({children}:{children:React.ReactNode}) {
@@ -23,7 +23,7 @@ export function CartProvider({children}:{children:React.ReactNode}) {
       add:(i,q=1)=>setItems(cur=>{const f=cur.find(x=>x.productId===i.productId);return f?cur.map(x=>x.productId===i.productId?{...x,quantity:x.quantity+q}:x):[...cur,{...i,quantity:q}]}),
       change:(id,d)=>setItems(cur=>cur.flatMap(x=>x.productId===id?(x.quantity+d>0?[{...x,quantity:x.quantity+d}]:[]):[x])),
       remove:id=>setItems(cur=>cur.filter(x=>x.productId!==id)),
-      open:()=>setOpen(true)
+      clear:()=>setItems([]),open:()=>setOpen(true)
     };
   },[items]);
 
@@ -57,7 +57,7 @@ export function CartProvider({children}:{children:React.ReactNode}) {
 }
 
 export function CheckoutForm() {
-  const {items,subtotal,clear}=useCheckoutCart();
+  const {items,subtotal,clear}=useCart();
   const [busy,setBusy]=useState(false),[consent,setConsent]=useState(false),[notice,setNotice]=useState("");
   const [form,setForm]=useState({name:"",phone:"",address:"",note:""});
 
