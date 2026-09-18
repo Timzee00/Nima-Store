@@ -5,7 +5,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 export type CartItem = { productId:string; name:string; price:number; image:string; quantity:number };
-type Ctx = { items:CartItem[]; count:number; subtotal:number; add:(i:Omit<CartItem,"quantity">,q?:number)=>void; change:(id:string,d:number)=>void; remove:(id:string)=>void; clear:()=>void; open:()=>void };
+type Ctx = { items:CartItem[]; count:number; subtotal:number; add:(i:Omit<CartItem,"quantity">,q?:number)=>void; change:(id:string,d:number)=>void; remove:(id:string)=>void; removeMany:(ids:string[])=>void; clear:()=>void; open:()=>void };
 const CartContext=createContext<Ctx|null>(null);
 
 export function CartProvider({children}:{children:React.ReactNode}) {
@@ -23,6 +23,7 @@ export function CartProvider({children}:{children:React.ReactNode}) {
       add:(i,q=1)=>setItems(cur=>{const f=cur.find(x=>x.productId===i.productId);return f?cur.map(x=>x.productId===i.productId?{...x,quantity:x.quantity+q}:x):[...cur,{...i,quantity:q}]}),
       change:(id,d)=>setItems(cur=>cur.flatMap(x=>x.productId===id?(x.quantity+d>0?[{...x,quantity:x.quantity+d}]:[]):[x])),
       remove:id=>setItems(cur=>cur.filter(x=>x.productId!==id)),
+      removeMany:ids=>{const set=new Set(ids);setItems(cur=>cur.filter(x=>!set.has(x.productId)))},
       clear:()=>setItems([]),open:()=>setOpen(true)
     };
   },[items]);
@@ -57,6 +58,39 @@ export function CartProvider({children}:{children:React.ReactNode}) {
 }
 
 export function CheckoutForm() {
+  const {items,subtotal,clear,removeMany}=useCart();
+  const [busy,setBusy]=useState(false),[consent,setConsent]=useState(false),[notice,setNotice]=useState(""),[checking,setChecking]=useState(true);
+  const [form,setForm]=useState({name:"",phone:"",address:"",note:""});
+
+  useEffect(()=>{
+    let cancelled=false;
+    async function validate(){
+      if(!items.length){setChecking(false);return}
+      setChecking(true);
+      try{
+        const res=await fetch("/api/cart/validate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ids:items.map(x=>x.productId)})});
+        const data=await res.json();
+        if(cancelled)return;
+        if(!res.ok)throw new Error(data.error||"We couldn't refresh your bag.");
+        const stale=[...(data.missingIds||[]),...(data.unavailable||[]).map((x:{id:string})=>x.id)];
+        const unique=[...new Set(stale)];
+        if(unique.length){
+          removeMany(unique);
+          setNotice(unique.length===items.length
+            ?"Some items in your bag are no longer available. We removed them so you can choose current products."
+            :"We refreshed your bag and removed items that are no longer available.");
+        }
+      }catch(err){
+        if(!cancelled)setNotice(err instanceof Error?err.message:"We couldn't refresh your bag.");
+      }finally{
+        if(!cancelled)setChecking(false);
+      }
+    }
+    validate();
+    return()=>{cancelled=true};
+  },[items.length]);
+
+
   const {items,subtotal,clear}=useCart();
   const [busy,setBusy]=useState(false),[consent,setConsent]=useState(false),[notice,setNotice]=useState("");
   const [form,setForm]=useState({name:"",phone:"",address:"",note:""});
@@ -96,7 +130,7 @@ export function CheckoutForm() {
         <div className="field"><label htmlFor="checkout-note">Note <span style={{fontWeight:400,color:"var(--muted)"}}>optional</span></label><input id="checkout-note" value={form.note} onChange={e=>setForm({...form,note:e.target.value})} placeholder="Size, colour, special instruction..."/></div>
         <label className="consent-check"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)} required/><span>I agree that NIMA COLLECTION may use these details to process this order and provide order support. <a href="/privacy">Privacy policy</a></span></label>
         {notice&&<div className="site-notice" role="alert"><div><strong>NIMA.</strong><span>{notice}</span></div><button type="button" onClick={()=>setNotice("")} aria-label="Dismiss message"><X size={15}/></button></div>}
-        <button className="btn" disabled={busy||!consent}>{busy?"Preparing WhatsApp...":"Send order to WhatsApp"}</button>
+        <button className="btn" disabled={busy||checking||!consent}>{checking?"Checking your bag...":busy?"Preparing WhatsApp...":"Send order to WhatsApp"}</button>
       </div>
     </form>
   </div>;
