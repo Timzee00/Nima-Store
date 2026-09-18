@@ -1,9 +1,12 @@
 import{NextResponse}from"next/server";import{z}from"zod";import{sql}from"@/lib/db";
-const schema=z.object({customerName:z.string().min(2).max(120),phone:z.string().min(7).max(30),deliveryAddress:z.string().min(5).max(500),note:z.string().max(500).optional(),items:z.array(z.object({productId:z.string().uuid(),name:z.string(),quantity:z.number().int().min(1).max(99),price:z.number().nonnegative()})).min(1).max(30)});
+const schema=z.object({customerName:z.string().trim().min(2,"Please enter your name.").max(120,"Name is too long."),phone:z.string().trim().min(7,"Please enter a valid phone number.").max(30,"Phone number is too long."),deliveryAddress:z.string().trim().min(5,"Please enter a fuller delivery address.").max(500,"Delivery address is too long."),note:z.string().max(500,"Note is too long.").optional(),items:z.array(z.object({productId:z.string().uuid(),name:z.string(),quantity:z.number().int().min(1).max(99),price:z.number().nonnegative()})).min(1,"Your bag is empty.").max(30)});
 export async function POST(req:Request){
  try{
   const parsed=schema.safeParse(await req.json());
-  if(!parsed.success)return NextResponse.json({error:"Please complete the checkout details."},{status:400});
+  if(!parsed.success){
+   const issue=parsed.error.issues[0];
+   return NextResponse.json({error:issue?.message||"Please check your checkout details.",field:issue?.path?.[0]||null},{status:400});
+  }
   const d=parsed.data,ids=d.items.map(x=>x.productId);
   if(new Set(ids).size!==ids.length)return NextResponse.json({error:"Duplicate products are not allowed in one order."},{status:400});
   const result=await sql.query(`
@@ -51,7 +54,7 @@ SELECT
  (SELECT subtotal FROM ins) AS subtotal,
  (SELECT items FROM ins) AS items,
  (SELECT jsonb_agg(jsonb_build_object('name',name,'reason',reason)) FROM bad) AS problems
-`,[JSON.stringify(d.items),d.customerName,d.phone,d.deliveryAddress,d.note??null]);
+`,[JSON.stringify(d.items),d.customerName,d.phone,d.deliveryAddress,d.note?.trim()||null]);
   const row=result[0];
   if(!row?.id){
    const problems=Array.isArray(row?.problems)?row.problems:[];
