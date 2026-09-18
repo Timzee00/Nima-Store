@@ -1,30 +1,3 @@
 export const dynamic="force-dynamic";
-import{ScrollHero}from"@/components/scroll-hero";
-import{StoreHeader}from"@/components/store-header";
-import{Storefront}from"@/components/storefront";
-import{getCategories,getProducts}from"@/lib/store";
-
-export default async function Home(){
-  const[products,categories]=await Promise.all([getProducts(),getCategories()]);
-  return <>
-    <StoreHeader/>
-    <main>
-      <ScrollHero/>
-      <div className="marquee"><div className="marquee-track">{Array.from({length:2}).flatMap((_,i)=>["NIMA COLLECTION","NEW IN","EVERYDAY PIECES","CURATED IN NIGERIA"].map(x=><span key={i+x}>{x}</span>))}</div></div>
-      <Storefront products={products} categories={categories}/>
-      <section id="story" className="section"><div className="container story">
-        <div className="card story-card dark"><div><div className="eyebrow" style={{color:"rgba(255,255,255,.6)"}}>Why Nima</div><h3>Useful, fun and easy to love.</h3></div><a className="btn secondary" style={{borderColor:"rgba(255,255,255,.3)",color:"#fff",width:"max-content"}} href="/shop">Browse the edit</a></div>
-        <div className="card story-card"><div><div className="eyebrow">The collection</div><h3>Accessories that earn their place.</h3></div><p>From slippers and tote bags to lamps, lights, tripods, microphones, masks and skincare, NIMA is built around little upgrades you can actually use.</p></div>
-      </div></section>
-    </main>
-    <footer id="footer" className="footer"><div className="container">
-      <div className="footer-grid">
-        <div><div className="brand">NIMA.</div><p>A modern mini-store for useful, playful and giftable everyday pieces.</p><p className="footer-detail"><strong>NIMA COLLECTION</strong><br/>Online store serving customers in Nigeria.</p></div>
-        <div><h4>Shop</h4><a href="/shop">All products</a><br/><a href="/about">About NIMA</a><br/><a href="/contact">Contact & support</a></div>
-        <div><h4>Policies</h4><a href="/privacy">Privacy policy</a><br/><a href="/terms">Terms & conditions</a><br/><a href="/refund-policy">Refund & returns</a><br/><a href="/cookies">Cookies & storage</a></div>
-        <div><h4>Accessibility</h4><a href="/accessibility">Accessibility statement</a><br/><p>Product and checkout controls are designed to work across mobile and desktop layouts.</p></div>
-      </div>
-      <div className="footer-bottom"><span>© {new Date().getFullYear()} NIMA COLLECTION</span><span>WhatsApp ordering • Secure staff area • Privacy-first storefront</span></div>
-    </div></footer>
-  </>;
-}
+import{ScrollHero}from"@/components/scroll-hero";import{StoreHeader}from"@/components/store-header";import{Storefront}from"@/components/storefront";import{getCategories,getProducts}from"@/lib/store";
+export default async function Home(){const[products,categories]=await Promise.all([getProducts(),getCategories()]);return <><StoreHeader/><main><ScrollHero/><div className="marquee"><div className="marquee-track">{Array.from({length:2}).flatMap((_,i)=>["NIMA COLLECTION","NEW IN","EVERYDAY PIECES","CURATED IN NIGERIA"].map(x=><span key={i+x}>{x}</span>))}</div></div><Storefront products={products} categories={categories}/><section id="story" className="section"><div className="container story"><div className="card story-card dark"><div><div className="eyebrow" style={{color:"rgba(255,255,255,.6)"}}>Why Nima</div><h3>Useful, fun and easy to love.</h3></div><a className="btn secondary" style={{borderColor:"rgba(255,255,255,.3)",color:"#fff",width:"max-content"}} href="/shop">Browse the edit</a></div><div className="card story-card"><div><div className="eyebrow">The collection</div><h3>Accessories that earn their place.</h3></div><p>From slippers and tote bags to lamps, lights, tripods, microphones, masks and skincare, NIMA is built around little upgrades you can actually use.</p></div></div></section></main><footer id="footer" className="footer"><div className="container"><div className="footer-grid"><div><div className="brand">NIMA.</div><p>A modern mini-store for useful, playful and giftable everyday pieces.</p><p className="footer-detail"><strong>NIMA COLLECTION</strong><br/>Online store serving customers in Nigeria.</p></div><div><h4>Shop</h4><a href="/shop">All products</a><br/><a href="/about">About NIMA</a><br/><a href="/contact">Contact & support</a><br/><a href="/faq">FAQ</a></div><div><h4>Policies</h4><a href="/privacy">Privacy policy</a><br/><a href="/terms">Terms & conditions</a><br/><a href="/refund-policy">Refund & returns</a><br/><a href="/cookies">Cookies & storage</a></div><div><h4>Accessibility</h4><a href="/accessibility">Accessibility statement</a><br/><p>Product and checkout controls are designed to work across mobile and desktop layouts.</p></div></div><div className="footer-bottom"><span>© {new Date().getFullYear()} NIMA COLLECTION</span><span>WhatsApp ordering • Secure staff area • Privacy-first storefront</span></div></div></footer></>}
