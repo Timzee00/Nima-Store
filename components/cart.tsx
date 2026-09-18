@@ -1,139 +1,486 @@
 "use client";
+
+import Link from "next/link";
 import Image from "next/image";
 import { Minus, Plus, ShoppingBag, X, ArrowRight } from "lucide-react";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 
-export type CartItem = { productId:string; name:string; price:number; image:string; quantity:number };
-type Ctx = { items:CartItem[]; count:number; subtotal:number; add:(i:Omit<CartItem,"quantity">,q?:number)=>void; change:(id:string,d:number)=>void; remove:(id:string)=>void; removeMany:(ids:string[])=>void; clear:()=>void; open:()=>void };
-const CartContext=createContext<Ctx|null>(null);
+export type CartItem = {
+  productId: string;
+  name: string;
+  price: number;
+  image: string;
+  quantity: number;
+};
 
-export function CartProvider({children}:{children:React.ReactNode}) {
-  const [items,setItems]=useState<CartItem[]>([]);
-  const [isOpen,setOpen]=useState(false);
+type CartContextValue = {
+  items: CartItem[];
+  count: number;
+  subtotal: number;
+  add: (item: Omit<CartItem, "quantity">, quantity?: number) => void;
+  change: (id: string, delta: number) => void;
+  remove: (id: string) => void;
+  removeMany: (ids: string[]) => void;
+  clear: () => void;
+  open: () => void;
+};
 
-  useEffect(()=>{try{const x=localStorage.getItem("nima-cart");if(x)setItems(JSON.parse(x))}catch{}},[]);
-  useEffect(()=>{try{localStorage.setItem("nima-cart",JSON.stringify(items))}catch{}},[items]);
+const CartContext = createContext<CartContextValue | null>(null);
 
-  const value=useMemo<Ctx>(() => {
-    const count=items.reduce((a,x)=>a+x.quantity,0);
-    const subtotal=items.reduce((a,x)=>a+x.price*x.quantity,0);
+export function CartProvider({ children }: { children: React.ReactNode }) {
+  const [items, setItems] = useState<CartItem[]>([]);
+  const [isOpen, setOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("nima-cart");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) setItems(parsed);
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("nima-cart", JSON.stringify(items));
+    } catch {}
+  }, [items]);
+
+  const value = useMemo<CartContextValue>(() => {
+    const count = items.reduce((total, item) => total + item.quantity, 0);
+    const subtotal = items.reduce((total, item) => total + item.price * item.quantity, 0);
+
     return {
-      items,count,subtotal,
-      add:(i,q=1)=>setItems(cur=>{const f=cur.find(x=>x.productId===i.productId);return f?cur.map(x=>x.productId===i.productId?{...x,quantity:x.quantity+q}:x):[...cur,{...i,quantity:q}]}),
-      change:(id,d)=>setItems(cur=>cur.flatMap(x=>x.productId===id?(x.quantity+d>0?[{...x,quantity:x.quantity+d}]:[]):[x])),
-      remove:id=>setItems(cur=>cur.filter(x=>x.productId!==id)),
-      removeMany:ids=>{const set=new Set(ids);setItems(cur=>cur.filter(x=>!set.has(x.productId)))},
-      clear:()=>setItems([]),open:()=>setOpen(true)
+      items,
+      count,
+      subtotal,
+      add: (item, quantity = 1) =>
+        setItems((current) => {
+          const existing = current.find((entry) => entry.productId === item.productId);
+          if (existing) {
+            return current.map((entry) =>
+              entry.productId === item.productId
+                ? { ...entry, quantity: entry.quantity + quantity }
+                : entry
+            );
+          }
+          return [...current, { ...item, quantity }];
+        }),
+      change: (id, delta) =>
+        setItems((current) =>
+          current.flatMap((item) => {
+            if (item.productId !== id) return [item];
+            const quantity = item.quantity + delta;
+            return quantity > 0 ? [{ ...item, quantity }] : [];
+          })
+        ),
+      remove: (id) => setItems((current) => current.filter((item) => item.productId !== id)),
+      removeMany: (ids) => {
+        const blocked = new Set(ids);
+        setItems((current) => current.filter((item) => !blocked.has(item.productId)));
+      },
+      clear: () => setItems([]),
+      open: () => setOpen(true),
     };
-  },[items]);
+  }, [items]);
 
-  return <CartContext.Provider value={value}>
-    {children}
-    <div className={"cart-drawer-wrap "+(isOpen?"open":"")} aria-hidden={!isOpen}>
-      <div className="cart-backdrop" onClick={()=>setOpen(false)}/>
-      <aside className="cart-drawer" aria-label="Shopping bag">
-        <div className="cart-head">
-          <div><div className="eyebrow">Your bag</div><strong>{value.count} {value.count===1?"item":"items"}</strong></div>
-          <button className="icon-btn" onClick={()=>setOpen(false)} aria-label="Close shopping bag"><X size={18}/></button>
-        </div>
-        <div className="cart-items">
-          {items.length===0?<div style={{margin:"auto",textAlign:"center",color:"var(--muted)"}}><ShoppingBag size={34} style={{margin:"0 auto 10px"}}/><div>Your bag is waiting.</div></div>:
-          items.map(i=><div className="cart-item" key={i.productId}>
-            <div className="cart-thumb">{i.image&&<Image src={i.image} alt={i.name} fill sizes="74px" unoptimized style={{objectFit:"cover"}}/>}</div>
-            <div><strong style={{fontSize:14}}>{i.name}</strong><div className="price">₦{i.price.toLocaleString()}</div><div className="qty"><button onClick={()=>value.change(i.productId,-1)} aria-label={"Decrease quantity of "+i.name}><Minus size={13}/></button><span aria-label={"Quantity "+i.quantity}>{i.quantity}</span><button onClick={()=>value.change(i.productId,1)} aria-label={"Increase quantity of "+i.name}><Plus size={13}/></button></div></div>
-            <button className="icon-btn" style={{width:34,height:34}} onClick={()=>value.remove(i.productId)} aria-label={"Remove "+i.name+" from shopping bag"}><X size={15}/></button>
-          </div>)}
-        </div>
-        {items.length>0&&<div className="cart-foot">
-          <div className="cart-total"><span>Subtotal</span><span>₦{value.subtotal.toLocaleString()}</span></div>
-          <div className="drawer-actions">
-            <Link className="btn secondary" href="/cart" onClick={()=>setOpen(false)}>View bag</Link>
-            <Link className="btn" href="/checkout" onClick={()=>setOpen(false)}>Checkout <ArrowRight size={16}/></Link>
+  return (
+    <CartContext.Provider value={value}>
+      {children}
+
+      <div className={"cart-drawer-wrap " + (isOpen ? "open" : "")}>
+        <div className="cart-backdrop" onClick={() => setOpen(false)} />
+
+        <aside className="cart-drawer" aria-label="Shopping bag">
+          <div className="cart-head">
+            <div>
+              <div className="eyebrow">Your bag</div>
+              <strong>
+                {value.count} {value.count === 1 ? "item" : "items"}
+              </strong>
+            </div>
+            <button className="icon-btn" onClick={() => setOpen(false)} aria-label="Close shopping bag">
+              <X size={18} />
+            </button>
           </div>
-        </div>}
-      </aside>
-    </div>
-  </CartContext.Provider>;
+
+          <div className="cart-items">
+            {!value.items.length ? (
+              <div style={{ margin: "auto", textAlign: "center", color: "var(--muted)" }}>
+                <ShoppingBag size={34} style={{ margin: "0 auto 10px" }} />
+                <div>Your bag is waiting.</div>
+              </div>
+            ) : (
+              value.items.map((item) => (
+                <div className="cart-item" key={item.productId}>
+                  <div className="cart-thumb">
+                    {item.image && (
+                      <Image
+                        src={item.image}
+                        alt={item.name}
+                        fill
+                        sizes="74px"
+                        unoptimized
+                        style={{ objectFit: "cover" }}
+                      />
+                    )}
+                  </div>
+
+                  <div>
+                    <strong style={{ fontSize: 14 }}>{item.name}</strong>
+                    <div className="price">₦{item.price.toLocaleString()}</div>
+                    <div className="qty">
+                      <button
+                        onClick={() => value.change(item.productId, -1)}
+                        aria-label={"Decrease quantity of " + item.name}
+                      >
+                        <Minus size={13} />
+                      </button>
+                      <span aria-label={"Quantity " + item.quantity}>{item.quantity}</span>
+                      <button
+                        onClick={() => value.change(item.productId, 1)}
+                        aria-label={"Increase quantity of " + item.name}
+                      >
+                        <Plus size={13} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    className="icon-btn"
+                    style={{ width: 34, height: 34 }}
+                    onClick={() => value.remove(item.productId)}
+                    aria-label={"Remove " + item.name + " from shopping bag"}
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+
+          {!!value.items.length && (
+            <div className="cart-foot">
+              <div className="cart-total">
+                <span>Subtotal</span>
+                <span>₦{value.subtotal.toLocaleString()}</span>
+              </div>
+
+              <div className="drawer-actions">
+                <Link className="btn secondary" href="/cart" onClick={() => setOpen(false)}>
+                  View bag
+                </Link>
+                <Link className="btn" href="/checkout" onClick={() => setOpen(false)}>
+                  Checkout <ArrowRight size={16} />
+                </Link>
+              </div>
+            </div>
+          )}
+        </aside>
+      </div>
+    </CartContext.Provider>
+  );
 }
 
 export function CheckoutForm() {
-  const {items,subtotal,clear,removeMany}=useCart();
-  const [busy,setBusy]=useState(false),[consent,setConsent]=useState(false),[notice,setNotice]=useState(""),[checking,setChecking]=useState(true);
-  const [form,setForm]=useState({name:"",phone:"",address:"",note:""});
+  const { items, subtotal, clear, removeMany } = useCart();
+  const [busy, setBusy] = useState(false);
+  const [checking, setChecking] = useState(true);
+  const [consent, setConsent] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [form, setForm] = useState({ name: "", phone: "", address: "", note: "" });
 
-  useEffect(()=>{
-    let cancelled=false;
-    async function validate(){
-      if(!items.length){setChecking(false);return}
+  useEffect(() => {
+    let cancelled = false;
+
+    async function validateBag() {
+      if (!items.length) {
+        setChecking(false);
+        return;
+      }
+
       setChecking(true);
-      try{
-        const res=await fetch("/api/cart/validate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ids:items.map(x=>x.productId)})});
-        const data=await res.json();
-        if(cancelled)return;
-        if(!res.ok)throw new Error(data.error||"We couldn't refresh your bag.");
-        const stale=[...(data.missingIds||[]),...(data.unavailable||[]).map((x:{id:string})=>x.id)];
-        const unique=[...new Set(stale)];
-        if(unique.length){
-          removeMany(unique);
-          setNotice(unique.length===items.length
-            ?"Some items in your bag are no longer available. We removed them so you can choose current products."
-            :"We refreshed your bag and removed items that are no longer available.");
+
+      try {
+        const response = await fetch("/api/cart/validate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: items.map((item) => item.productId) }),
+        });
+
+        const data = await response.json();
+
+        if (cancelled) return;
+        if (!response.ok) {
+          throw new Error(data.error || "We couldn't refresh your bag.");
         }
-      }catch(err){
-        if(!cancelled)setNotice(err instanceof Error?err.message:"We couldn't refresh your bag.");
-      }finally{
-        if(!cancelled)setChecking(false);
+
+        const unavailableIds = [
+          ...(Array.isArray(data.missingIds) ? data.missingIds : []),
+          ...(Array.isArray(data.unavailable)
+            ? data.unavailable.map((item: { id: string }) => item.id)
+            : []),
+        ];
+
+        const uniqueIds = [...new Set(unavailableIds)];
+
+        if (uniqueIds.length) {
+          removeMany(uniqueIds);
+          setNotice(
+            uniqueIds.length === items.length
+              ? "Some items in your bag are no longer available. We removed them so you can choose current products."
+              : "We refreshed your bag and removed items that are no longer available."
+          );
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setNotice(error instanceof Error ? error.message : "We couldn't refresh your bag.");
+        }
+      } finally {
+        if (!cancelled) setChecking(false);
       }
     }
-    validate();
-    return()=>{cancelled=true};
-  },[items.length]);
 
+    validateBag();
 
-  const {items,subtotal,clear}=useCart();
-  const [busy,setBusy]=useState(false),[consent,setConsent]=useState(false),[notice,setNotice]=useState("");
-  const [form,setForm]=useState({name:"",phone:"",address:"",note:""});
+    return () => {
+      cancelled = true;
+    };
+  }, [items.length, removeMany]);
 
-  async function submit(e:React.FormEvent){
-    e.preventDefault();
-    if(!consent)return;
-    const number=process.env.NEXT_PUBLIC_WHATSAPP_NUMBER?.replace(/\D/g,"");
-    if(!number){setNotice("WhatsApp ordering is not configured yet. Please contact the store.");return}
-    setBusy(true);setNotice("");
-    try{
-      const res=await fetch("/api/orders",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({customerName:form.name,phone:form.phone,deliveryAddress:form.address,note:form.note,items:items.map(x=>({productId:x.productId,name:x.name,quantity:x.quantity,price:x.price}))})});
-      const d=await res.json();
-      if(!res.ok)throw new Error(d.error||"We couldn't place your order.");
-      const lines=["Hello NIMA COLLECTION,","I'd like to place an order:","",...d.items.map((x:{quantity:number;name:string;price:number})=>x.quantity+" × "+x.name+" — ₦"+(x.price*x.quantity).toLocaleString()),"","Subtotal: ₦"+Number(d.subtotal??subtotal).toLocaleString(),"Order reference: "+d.orderId,"Customer: "+form.name,"Phone: "+form.phone,"Delivery address: "+form.address,...(form.note?["Note: "+form.note]:[])];
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+
+    if (!consent || !items.length) return;
+
+    const number = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER?.replace(/\D/g, "");
+
+    if (!number) {
+      setNotice("WhatsApp ordering is not configured yet. Please contact the store.");
+      return;
+    }
+
+    setBusy(true);
+    setNotice("");
+
+    try {
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerName: form.name,
+          phone: form.phone,
+          deliveryAddress: form.address,
+          note: form.note,
+          items: items.map((item) => ({
+            productId: item.productId,
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
+          })),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "We couldn't place your order.");
+      }
+
+      const verifiedItems = Array.isArray(data.items) ? data.items : [];
+      const verifiedSubtotal = Number(data.subtotal ?? subtotal);
+
+      const lines = [
+        "Hello NIMA COLLECTION,",
+        "I'd like to place an order:",
+        "",
+        ...verifiedItems.map(
+          (item: { quantity: number; name: string; price: number }) =>
+            item.quantity +
+            " × " +
+            item.name +
+            " — ₦" +
+            (Number(item.price) * item.quantity).toLocaleString()
+        ),
+        "",
+        "Subtotal: ₦" + verifiedSubtotal.toLocaleString(),
+        "Order reference: " + data.orderId,
+        "Customer: " + form.name,
+        "Phone: " + form.phone,
+        "Delivery address: " + form.address,
+        ...(form.note ? ["Note: " + form.note] : []),
+      ];
+
       clear();
-      window.location.href="https://wa.me/"+number+"?text="+encodeURIComponent(lines.join("\n"));
-    }catch(err){setNotice(err instanceof Error?err.message:"We couldn't place your order. Please try again.")}
-    finally{setBusy(false)}
+      window.location.href =
+        "https://wa.me/" + number + "?text=" + encodeURIComponent(lines.join("\n"));
+    } catch (error) {
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "We couldn't place your order. Please try again."
+      );
+    } finally {
+      setBusy(false);
+    }
   }
 
-  if(!items.length)return <div className="checkout-empty card"><div className="eyebrow">Your bag</div><h2>Your bag is empty.</h2><p>Add products before checking out.</p><Link className="btn" href="/shop">Browse the collection</Link></div>;
-
-  return <div className="checkout-layout">
-    <div className="card checkout-summary">
-      <div className="eyebrow">Order summary</div>
-      <div className="checkout-products">{items.map(i=><div className="checkout-product" key={i.productId}><div className="checkout-product-image">{i.image&&<Image src={i.image} alt={i.name} fill sizes="72px" unoptimized style={{objectFit:"cover"}}/>}</div><div><strong>{i.name}</strong><div className="checkout-product-meta">Qty {i.quantity} · ₦{(i.price*i.quantity).toLocaleString()}</div></div></div>)}</div>
-      <div className="cart-total"><span>Subtotal</span><span>₦{subtotal.toLocaleString()}</span></div>
-      <p className="checkout-note">Delivery fees, where applicable, are confirmed by the store before fulfilment.</p>
-    </div>
-    <form className="card checkout-card" onSubmit={submit}>
-      <div><div className="eyebrow">Customer details</div><h2>Complete your order.</h2></div>
-      <div className="checkout-form">
-        <div className="field"><label htmlFor="checkout-name">Name</label><input id="checkout-name" required value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Full name" autoComplete="name"/></div>
-        <div className="field"><label htmlFor="checkout-phone">Phone</label><input id="checkout-phone" required value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} placeholder="080..." autoComplete="tel"/></div>
-        <div className="field"><label htmlFor="checkout-address">Delivery address</label><textarea id="checkout-address" required value={form.address} onChange={e=>setForm({...form,address:e.target.value})} rows={3} placeholder="Where should we deliver?" autoComplete="street-address"/></div>
-        <div className="field"><label htmlFor="checkout-note">Note <span style={{fontWeight:400,color:"var(--muted)"}}>optional</span></label><input id="checkout-note" value={form.note} onChange={e=>setForm({...form,note:e.target.value})} placeholder="Size, colour, special instruction..."/></div>
-        <label className="consent-check"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)} required/><span>I agree that NIMA COLLECTION may use these details to process this order and provide order support. <a href="/privacy">Privacy policy</a></span></label>
-        {notice&&<div className="site-notice" role="alert"><div><strong>NIMA.</strong><span>{notice}</span></div><button type="button" onClick={()=>setNotice("")} aria-label="Dismiss message"><X size={15}/></button></div>}
-        <button className="btn" disabled={busy||checking||!consent}>{checking?"Checking your bag...":busy?"Preparing WhatsApp...":"Send order to WhatsApp"}</button>
+  if (!items.length) {
+    return (
+      <div className="checkout-empty card">
+        <div className="eyebrow">Your bag</div>
+        <h2>Your bag is empty.</h2>
+        <p>Add products before checking out.</p>
+        <Link className="btn" href="/shop">
+          Browse the collection
+        </Link>
       </div>
-    </form>
-  </div>;
+    );
+  }
+
+  return (
+    <div className="checkout-layout">
+      <div className="card checkout-summary">
+        <div className="eyebrow">Order summary</div>
+
+        <div className="checkout-products">
+          {items.map((item) => (
+            <div className="checkout-product" key={item.productId}>
+              <div className="checkout-product-image">
+                {item.image && (
+                  <Image
+                    src={item.image}
+                    alt={item.name}
+                    fill
+                    sizes="72px"
+                    unoptimized
+                    style={{ objectFit: "cover" }}
+                  />
+                )}
+              </div>
+              <div>
+                <strong>{item.name}</strong>
+                <div className="checkout-product-meta">
+                  Qty {item.quantity} · ₦{(item.price * item.quantity).toLocaleString()}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="cart-total">
+          <span>Subtotal</span>
+          <span>₦{subtotal.toLocaleString()}</span>
+        </div>
+
+        <p className="checkout-note">
+          Delivery fees, where applicable, are confirmed by NIMA COLLECTION before fulfilment.
+        </p>
+      </div>
+
+      <form className="card checkout-card" onSubmit={submit}>
+        <div>
+          <div className="eyebrow">Customer details</div>
+          <h2>Complete your order.</h2>
+        </div>
+
+        <div className="checkout-form">
+          <div className="field">
+            <label htmlFor="checkout-name">Name</label>
+            <input
+              id="checkout-name"
+              required
+              value={form.name}
+              onChange={(event) => setForm({ ...form, name: event.target.value })}
+              placeholder="Full name"
+              autoComplete="name"
+            />
+          </div>
+
+          <div className="field">
+            <label htmlFor="checkout-phone">Phone</label>
+            <input
+              id="checkout-phone"
+              required
+              value={form.phone}
+              onChange={(event) => setForm({ ...form, phone: event.target.value })}
+              placeholder="080..."
+              autoComplete="tel"
+            />
+          </div>
+
+          <div className="field">
+            <label htmlFor="checkout-address">Delivery address</label>
+            <textarea
+              id="checkout-address"
+              required
+              value={form.address}
+              onChange={(event) => setForm({ ...form, address: event.target.value })}
+              rows={3}
+              placeholder="Where should we deliver?"
+              autoComplete="street-address"
+            />
+          </div>
+
+          <div className="field">
+            <label htmlFor="checkout-note">
+              Note <span style={{ fontWeight: 400, color: "var(--muted)" }}>optional</span>
+            </label>
+            <input
+              id="checkout-note"
+              value={form.note}
+              onChange={(event) => setForm({ ...form, note: event.target.value })}
+              placeholder="Size, colour, special instruction..."
+            />
+          </div>
+
+          <label className="consent-check">
+            <input
+              type="checkbox"
+              checked={consent}
+              onChange={(event) => setConsent(event.target.checked)}
+              required
+            />
+            <span>
+              I agree that NIMA COLLECTION may use these details to process this order and
+              provide order support. <a href="/privacy">Privacy policy</a>
+            </span>
+          </label>
+
+          {notice && (
+            <div className="site-notice" role="alert">
+              <div>
+                <strong>NIMA.</strong>
+                <span>{notice}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setNotice("")}
+                aria-label="Dismiss message"
+              >
+                <X size={15} />
+              </button>
+            </div>
+          )}
+
+          <button className="btn" disabled={busy || checking || !consent}>
+            {checking
+              ? "Checking your bag..."
+              : busy
+              ? "Preparing WhatsApp..."
+              : "Send order to WhatsApp"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
 }
 
-export function useCart(){const x=useContext(CartContext);if(!x)throw new Error("useCart must be used inside CartProvider");return x}
+export function useCart() {
+  const context = useContext(CartContext);
+  if (!context) {
+    throw new Error("useCart must be used inside CartProvider");
+  }
+  return context;
+}
