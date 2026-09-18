@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { Menu, Search, ShoppingBag, X } from "lucide-react";
+import { ThemeToggle } from "./theme-toggle";
 import { useEffect, useState } from "react";
 import { useCart } from "./cart";
 
@@ -23,10 +24,10 @@ export function StoreHeader() {
         <nav className="nav-links" aria-label="Primary navigation">
           <Link href="/shop">Shop</Link>
           <Link href="/about">About</Link>
-          <Link href="/contact">Contact</Link>
+          <Link href="/contact">Contact</Link><Link href="/faq">FAQ</Link>
         </nav>
 
-        <div className="nav-actions">
+        <div className="nav-actions"><ThemeToggle />
           <Link className="icon-btn desktop-only" href="/shop" aria-label="Search products">
             <Search size={18}/>
           </Link>
@@ -54,7 +55,7 @@ export function StoreHeader() {
           <Link href="/shop" onClick={()=>setOpen(false)}>Shop all</Link>
           <Link href="/about" onClick={()=>setOpen(false)}>About NIMA</Link>
           <Link href="/contact" onClick={()=>setOpen(false)}>Contact & support</Link>
-          <Link href="/cart" onClick={()=>setOpen(false)}>Shopping bag {count>0&&`(${count})`}</Link>
+          <Link href="/cart" onClick={()=>setOpen(false)}>Shopping bag {count>0&&`(${count})`}</Link><div className="menu-theme-row"><span>Theme</span><ThemeToggle /></div>
 
           <div className="eyebrow menu-rule">Policies</div>
           <Link href="/privacy" onClick={()=>setOpen(false)}>Privacy policy</Link>
