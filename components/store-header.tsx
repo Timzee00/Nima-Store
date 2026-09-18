@@ -34,7 +34,7 @@ export function StoreHeader() {
           <button className="icon-btn" onClick={openCart} aria-label={count ? `Open shopping bag with ${count} items` : "Open shopping bag"}>
             <ShoppingBag size={18}/>
             {count>0&&<span className="cart-count" aria-hidden="true">{count}</span>}
-          </Link>
+          </button>
           <button className="icon-btn menu-trigger" onClick={()=>setMenuOpen(true)} aria-label="Open menu" aria-expanded={menuOpen}>
             <Menu size={19}/>
           </button>
