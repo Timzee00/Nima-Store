@@ -1,0 +1,1 @@
+import{StoreHeader}from"@/components/store-header";import{CartPage}from"@/components/cart-page";export default function Cart(){return <><StoreHeader/><CartPage/></>}
