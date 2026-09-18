@@ -1,0 +1,1 @@
+Hero media placeholder. The page is wired to scroll-scrub /hero.mp4. Replace this file's placeholder with the final NIMA product film at public/hero.mp4 before production.
