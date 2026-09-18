@@ -30,17 +30,17 @@ export function CartProvider({children}:{children:React.ReactNode}) {
     {children}
     <div className={"cart-drawer-wrap "+(isOpen?"open":"")}>
       <div className="cart-backdrop" onClick={()=>setOpen(false)}/>
-      <aside className="cart-drawer">
+      <aside className="cart-drawer" aria-label="Shopping bag">
         <div className="cart-head">
           <div><div className="eyebrow">Your bag</div><strong>{value.count} {value.count===1?"item":"items"}</strong></div>
-          <button className="icon-btn" onClick={()=>setOpen(false)} aria-label="Close cart"><X size={18}/></button>
+          <button className="icon-btn" onClick={()=>setOpen(false)} aria-label="Close shopping bag"><X size={18}/></button>
         </div>
         <div className="cart-items">
           {items.length===0?<div style={{margin:"auto",textAlign:"center",color:"var(--muted)"}}><ShoppingBag size={34} style={{margin:"0 auto 10px"}}/><div>Your bag is waiting.</div></div>:
           items.map(i=><div className="cart-item" key={i.productId}>
-            <div className="cart-thumb">{i.image&&<Image src={i.image} alt="" fill sizes="74px" unoptimized style={{objectFit:"cover"}}/>}</div>
-            <div><strong style={{fontSize:14}}>{i.name}</strong><div className="price">₦{i.price.toLocaleString()}</div><div className="qty"><button onClick={()=>value.change(i.productId,-1)} aria-label="Decrease"><Minus size={13}/></button><span>{i.quantity}</span><button onClick={()=>value.change(i.productId,1)} aria-label="Increase"><Plus size={13}/></button></div></div>
-            <button className="icon-btn" style={{width:34,height:34}} onClick={()=>value.remove(i.productId)} aria-label="Remove"><X size={15}/></button>
+            <div className="cart-thumb">{i.image&&<Image src={i.image} alt={i.name} fill sizes="74px" unoptimized style={{objectFit:"cover"}}/>}</div>
+            <div><strong style={{fontSize:14}}>{i.name}</strong><div className="price">₦{i.price.toLocaleString()}</div><div className="qty"><button onClick={()=>value.change(i.productId,-1)} aria-label={"Decrease quantity of "+i.name}><Minus size={13}/></button><span aria-label={"Quantity "+i.quantity}>{i.quantity}</span><button onClick={()=>value.change(i.productId,1)} aria-label={"Increase quantity of "+i.name}><Plus size={13}/></button></div></div>
+            <button className="icon-btn" style={{width:34,height:34}} onClick={()=>value.remove(i.productId)} aria-label={"Remove "+i.name+" from shopping bag"}><X size={15}/></button>
           </div>)}
         </div>
         {items.length>0&&<div className="cart-foot"><div className="cart-total"><span>Subtotal</span><span>₦{value.subtotal.toLocaleString()}</span></div><CheckoutForm items={items} subtotal={value.subtotal} clear={()=>setItems([])} close={()=>setOpen(false)}/></div>}
@@ -50,10 +50,12 @@ export function CartProvider({children}:{children:React.ReactNode}) {
 }
 
 function CheckoutForm({items,subtotal,clear,close}:{items:CartItem[];subtotal:number;clear:()=>void;close:()=>void}) {
-  const [busy,setBusy]=useState(false),[done,setDone]=useState(false),[form,setForm]=useState({name:"",phone:"",address:"",note:""});
+  const [busy,setBusy]=useState(false),[done,setDone]=useState(false),[consent,setConsent]=useState(false);
+  const [form,setForm]=useState({name:"",phone:"",address:"",note:""});
 
   async function submit(e:React.FormEvent){
     e.preventDefault();
+    if(!consent)return;
     const number=process.env.NEXT_PUBLIC_WHATSAPP_NUMBER?.replace(/\D/g,"");
     if(!number){alert("WhatsApp ordering is not configured yet.");return}
     setBusy(true);
@@ -69,11 +71,12 @@ function CheckoutForm({items,subtotal,clear,close}:{items:CartItem[];subtotal:nu
   if(done)return <div style={{padding:"18px 0"}}><strong>Opening WhatsApp...</strong><p style={{color:"var(--muted)",lineHeight:1.6}}>Your order details are prepared in the message. Send it to complete the request.</p><button className="btn" onClick={close}>Continue shopping</button></div>;
 
   return <form className="checkout-form" onSubmit={submit}>
-    <div className="field"><label>Name</label><input required value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Full name"/></div>
-    <div className="field"><label>Phone</label><input required value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} placeholder="080..."/></div>
-    <div className="field"><label>Delivery address</label><textarea required value={form.address} onChange={e=>setForm({...form,address:e.target.value})} rows={2} placeholder="Where should we deliver?"/></div>
-    <div className="field"><label>Note <span style={{fontWeight:400,color:"var(--muted)"}}>optional</span></label><input value={form.note} onChange={e=>setForm({...form,note:e.target.value})} placeholder="Size, colour, special instruction..."/></div>
-    <button className="btn" disabled={busy}>{busy?"Preparing WhatsApp...":"Order via WhatsApp"}</button>
+    <div className="field"><label htmlFor="checkout-name">Name</label><input id="checkout-name" required value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Full name" autoComplete="name"/></div>
+    <div className="field"><label htmlFor="checkout-phone">Phone</label><input id="checkout-phone" required value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} placeholder="080..." autoComplete="tel"/></div>
+    <div className="field"><label htmlFor="checkout-address">Delivery address</label><textarea id="checkout-address" required value={form.address} onChange={e=>setForm({...form,address:e.target.value})} rows={2} placeholder="Where should we deliver?" autoComplete="street-address"/></div>
+    <div className="field"><label htmlFor="checkout-note">Note <span style={{fontWeight:400,color:"var(--muted)"}}>optional</span></label><input id="checkout-note" value={form.note} onChange={e=>setForm({...form,note:e.target.value})} placeholder="Size, colour, special instruction..."/></div>
+    <label className="consent-check"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)} required/><span>I agree that NIMA COLLECTION may use these details to process this order and provide order support. <a href="/privacy">Privacy policy</a></span></label>
+    <button className="btn" disabled={busy||!consent}>{busy?"Preparing WhatsApp...":"Order via WhatsApp"}</button>
   </form>;
 }
 
