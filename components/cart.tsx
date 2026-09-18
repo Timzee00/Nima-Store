@@ -61,7 +61,6 @@ export function CheckoutForm() {
   const [busy,setBusy]=useState(false),[consent,setConsent]=useState(false),[notice,setNotice]=useState("");
   const [form,setForm]=useState({name:"",phone:"",address:"",note:""});
 
-  function clear(){ /* compatibility placeholder replaced below */ }
   async function submit(e:React.FormEvent){
     e.preventDefault();
     if(!consent)return;
@@ -103,9 +102,4 @@ export function CheckoutForm() {
   </div>;
 }
 
-function useCheckoutCart(){
-  const x=useContext(CartContext);
-  if(!x)throw new Error("CheckoutForm must be used inside CartProvider");
-  return {items:x.items,subtotal:x.subtotal,clear:()=>{x.remove("__clear__");}};
-}
 export function useCart(){const x=useContext(CartContext);if(!x)throw new Error("useCart must be used inside CartProvider");return x}
