@@ -395,6 +395,7 @@ export function CheckoutForm() {
               onChange={(event) => setForm({ ...form, name: event.target.value })}
               placeholder="Full name"
               autoComplete="name"
+              minLength={2}
             />
           </div>
 
@@ -407,6 +408,7 @@ export function CheckoutForm() {
               onChange={(event) => setForm({ ...form, phone: event.target.value })}
               placeholder="080..."
               autoComplete="tel"
+              minLength={7}
             />
           </div>
 
@@ -418,6 +420,7 @@ export function CheckoutForm() {
               value={form.address}
               onChange={(event) => setForm({ ...form, address: event.target.value })}
               rows={3}
+              minLength={5}
               placeholder="Where should we deliver?"
               autoComplete="street-address"
             />
