@@ -54,3 +54,7 @@
   .consent-banner{left:10px;right:10px;bottom:10px;display:block;padding:16px;border-radius:16px}
   .consent-actions{margin-top:12px;justify-content:flex-end}
 }
+
+.consent-check{display:flex;align-items:flex-start;gap:9px;font-size:11px;color:var(--muted);line-height:1.5;padding:4px 0}
+.consent-check input{margin-top:3px;flex:0 0 auto}
+.consent-check a{text-decoration:underline;color:var(--ink)}
