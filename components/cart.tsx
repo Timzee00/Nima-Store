@@ -15,6 +15,7 @@ export type CartItem = {
 
 type CartContextValue = {
   items: CartItem[];
+  hydrated: boolean;
   count: number;
   subtotal: number;
   add: (item: Omit<CartItem, "quantity">, quantity?: number) => void;
@@ -31,6 +32,7 @@ const CartContext = createContext<CartContextValue | null>(null);
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isOpen, setOpen] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     try {
@@ -39,14 +41,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed)) setItems(parsed);
       }
-    } catch {}
+    } catch {} finally {
+      setHydrated(true);
+    }
   }, []);
 
   useEffect(() => {
     try {
       localStorage.setItem("nima-cart", JSON.stringify(items));
     } catch {}
-  }, [items]);
+  }, [items, hydrated]);
 
   const value = useMemo<CartContextValue>(() => {
     const count = items.reduce((total, item) => total + item.quantity, 0);
@@ -54,6 +58,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
     return {
       items,
+      hydrated,
       count,
       subtotal,
       add: (item, quantity = 1) =>
@@ -193,7 +198,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function CheckoutForm() {
-  const { items, subtotal, clear, removeMany, syncItems } = useCart();
+  const { items, hydrated, subtotal, clear, removeMany, syncItems } = useCart();
   const [busy, setBusy] = useState(false);
   const [checking, setChecking] = useState(true);
   const [consent, setConsent] = useState(false);
@@ -204,6 +209,7 @@ export function CheckoutForm() {
     let cancelled = false;
 
     async function validateBag() {
+      if (!hydrated) return;
       if (!items.length) {
         setChecking(false);
         return;
@@ -226,7 +232,6 @@ export function CheckoutForm() {
         }
 
         if (Array.isArray(data.replacements) && data.replacements.length) {
-          removeMany([]);
           syncItems(data.replacements);
           setNotice("We refreshed your bag with the latest product information.");
         }
@@ -262,7 +267,7 @@ export function CheckoutForm() {
     return () => {
       cancelled = true;
     };
-  }, [items.length, removeMany]);
+  }, [hydrated]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
