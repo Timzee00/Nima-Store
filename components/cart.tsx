@@ -326,7 +326,7 @@ export function CheckoutForm() {
         ),
         "",
         "Subtotal: ₦" + verifiedSubtotal.toLocaleString(),
-        "Order reference: " + data.orderId,
+        "Order reference: " + (data.orderNumber || data.orderId),
         "Customer: " + form.name,
         "Phone: " + form.phone,
         "Delivery address: " + form.address,
