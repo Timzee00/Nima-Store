@@ -55,7 +55,7 @@ export function StoreHeader() {
           <Link href="/shop" onClick={()=>setMenuOpen(false)}>Shop all</Link>
           <Link href="/about" onClick={()=>setMenuOpen(false)}>About NIMA</Link>
           <Link href="/contact" onClick={()=>setMenuOpen(false)}>Contact & support</Link>
-          <Link href="/cart" onClick={()=>setMenuOpen(false)}>Shopping bag {count>0&&`(${count})`}</Link><div className="menu-theme-row"><span>Theme</span><ThemeToggle /></div>
+          <Link href="/cart" onClick={()=>setMenuOpen(false)}>Shopping bag {count>0&&`(${count})`}</Link><Link href="/orders" onClick={()=>setMenuOpen(false)}>Order history</Link><div className="menu-theme-row"><span>Theme</span><ThemeToggle /></div>
 
           <div className="eyebrow menu-rule">Policies</div>
           <Link href="/privacy" onClick={()=>setMenuOpen(false)}>Privacy policy</Link>
