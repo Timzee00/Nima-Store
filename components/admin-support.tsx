@@ -1,1 +1,44 @@
-"use client";import{useState}from"react";type Ticket={id:string;ticket_number:string;order_id:string|null;order_number?:string|null;customer_name:string;phone:string;category:string;message:string;status:string;priority:string;staff_note:string|null;created_at:string};export function AdminSupport({initial}:{initial:Ticket[]}){const[tickets,setTickets]=useState(initial),[busy,setBusy]=useState("");async function update(id:string,patch:any){setBusy(id);const r=await fetch("/api/admin/support",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,...patch})}),d=await r.json();if(r.ok)setTickets(cur=>cur.map(t=>t.id===id?{...t,...d}:t));setBusy("");}return <div className="admin-support-list">{tickets.length?tickets.map(t=><article className="admin-card support-ticket" key={t.id}><div className="support-ticket-head"><div><strong>{t.ticket_number}</strong><div className="support-meta">{t.customer_name} · {t.phone} · {new Date(t.created_at).toLocaleString()}</div></div><span className={"order-status order-status-"+t.status}>{t.status.replace("_"," ")}</span></div><div className="support-meta">Order: {t.order_number||"General support"} · {t.category}</div><p className="support-message">{t.message}</p><div className="support-controls"><label>Status<select value={t.status} disabled={busy===t.id} onChange={e=>update(t.id,{status:e.target.value})}><option value="open">Open</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option><option value="closed">Closed</option></select></label><label>Priority<select value={t.priority} disabled={busy===t.id} onChange={e=>update(t.id,{priority:e.target.value})}><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></label><label>Staff note<input defaultValue={t.staff_note||""} disabled={busy===t.id} placeholder="Internal note" onBlur={e=>{if(e.target.value!==(t.staff_note||""))update(t.id,{staffNote:e.target.value})}}/></label></div></article>):<div className="admin-card"><p>No support tickets yet.</p></div>}</div>
+"use client";
+import { useState } from "react";
+
+type Ticket={
+ id:string;ticket_number:string;order_id:string|null;order_number?:string|null;
+ customer_name:string;phone:string;category:string;message:string;status:string;
+ priority:string;staff_note:string|null;created_at:string
+};
+
+export function AdminSupport({initial}:{initial:Ticket[]}){
+ const[tickets,setTickets]=useState(initial),[busy,setBusy]=useState(""),[message,setMessage]=useState("");
+
+ async function update(id:string,patch:Record<string,string>){
+  setBusy(id);setMessage("");
+  try{
+   const r=await fetch("/api/admin/support",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,...patch})});
+   const d=await r.json();
+   if(!r.ok)throw new Error(d.error||"Could not update ticket.");
+   setTickets(cur=>cur.map(t=>t.id===id?{...t,...d}:t));
+  }catch(e){setMessage(e instanceof Error?e.message:"Could not update ticket.");}
+  finally{setBusy("");}
+ }
+
+ return <div className="admin-support-list">
+  {message&&<div className="site-notice" role="alert"><div><strong>NIMA.</strong><span>{message}</span></div></div>}
+  {tickets.length?tickets.map(t=><article className="admin-card support-ticket" key={t.id}>
+   <div className="support-ticket-head">
+    <div><strong>{t.ticket_number}</strong><div className="support-meta">{t.customer_name} · {t.phone} · {new Date(t.created_at).toLocaleString()}</div></div>
+    <span className={"order-status order-status-"+t.status}>{t.status.replace("_"," ")}</span>
+   </div>
+   <div className="support-meta">Order: {t.order_number||"General support"} · {t.category}</div>
+   <p className="support-message">{t.message}</p>
+   <div className="support-controls">
+    <label>Status<select value={t.status} disabled={busy===t.id} onChange={e=>update(t.id,{status:e.target.value})}>
+     <option value="open">Open</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option><option value="closed">Closed</option>
+    </select></label>
+    <label>Priority<select value={t.priority} disabled={busy===t.id} onChange={e=>update(t.id,{priority:e.target.value})}>
+     <option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option>
+    </select></label>
+    <label>Staff note<input defaultValue={t.staff_note||""} disabled={busy===t.id} placeholder="Internal note" onBlur={e=>{if(e.target.value!==(t.staff_note||""))update(t.id,{staffNote:e.target.value})}}/></label>
+   </div>
+  </article>):<div className="admin-card"><p>No support tickets yet.</p></div>}
+ </div>;
+}
