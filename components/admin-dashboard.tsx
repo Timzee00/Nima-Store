@@ -128,7 +128,58 @@ export function AdminDashboard({initialProducts,initialProductTotal,initialOrder
 
     <div className="desktop-only-admin">
      <div className="table-wrap"><table className="table admin-data-table"><thead><tr><th>Product</th><th>Category</th><th>Price</th><th>Stock</th><th>Actions</th></tr></thead><tbody>
-      {products.map(p=><tr key={p.id}><td><div className="admin-product-cell"><div className="admin-list-thumb">{p.images[0]&&<Image src={p.images[0]} alt="" fill sizes="46px" unoptimized style={{objectFit:"cover"}}/></div><div><strong>{p.name}</strong><span>{p.images.length} image{p.images.length===1?"":"s"} · {p.active?"Live":"Archived"}</span></div></div></td><td>{p.category}</td><td>{money(p.salePrice??p.price)}</td><td><span className={p.stock<=5?"stock-warning":""}>{p.stock.toLocaleString()}</span></td><td><div className="admin-row-actions"><button className="icon-btn" onClick={()=>setModal(p)} aria-label={"Edit "+p.name}><PenLine size={14}/></button><button className="icon-btn" onClick={()=>remove(p.id)} aria-label={"Archive "+p.name}><Trash2 size={14}/></button></div></td></tr>)}
+      {products.map((product) => (
+        <tr key={product.id}>
+          <td>
+            <div className="admin-product-cell">
+              <div className="admin-list-thumb">
+                {product.images[0] && (
+                  <Image
+                    src={product.images[0]}
+                    alt=""
+                    fill
+                    sizes="46px"
+                    unoptimized
+                    style={{ objectFit: "cover" }}
+                  />
+                )}
+              </div>
+              <div>
+                <strong>{product.name}</strong>
+                <span>
+                  {product.images.length} image{product.images.length === 1 ? "" : "s"} ·{" "}
+                  {product.active ? "Live" : "Archived"}
+                </span>
+              </div>
+            </div>
+          </td>
+          <td>{product.category}</td>
+          <td>{money(product.salePrice ?? product.price)}</td>
+          <td>
+            <span className={product.stock <= 5 ? "stock-warning" : ""}>
+              {product.stock.toLocaleString()}
+            </span>
+          </td>
+          <td>
+            <div className="admin-row-actions">
+              <button
+                className="icon-btn"
+                onClick={() => setModal(product)}
+                aria-label={"Edit " + product.name}
+              >
+                <PenLine size={14} />
+              </button>
+              <button
+                className="icon-btn"
+                onClick={() => remove(product.id)}
+                aria-label={"Archive " + product.name}
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          </td>
+        </tr>
+      ))}
       {!products.length&&!productBusy&&<tr><td colSpan={5}><div className="admin-empty"><PackageSearch size={24}/><strong>No products found</strong><span>Try a different search.</span></div></td></tr>}
      </tbody></table></div>
     </div>
