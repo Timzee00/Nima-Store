@@ -16,40 +16,48 @@ export function AdminDashboard({initialProducts,initialOrders,stats}:{initialPro
 }
 
 function ProductModal({existing,close,onSaved}:{existing?:Product;close:()=>void;onSaved:(p:Product)=>void}){
- const[form,setForm]=useState({name:existing?.name??"",category:existing?.category??"Slippers",description:existing?.description??"",price:existing?.price??"",salePrice:existing?.salePrice??"",stock:String(existing?.stock??0),featured:existing?.featured??false});const[error,setError]=useState("");
+ const[form,setForm]=useState({name:existing?.name??"",category:existing?.category??"Slippers",description:existing?.description??"",price:existing?.price??"",salePrice:existing?.salePrice??"",stock:String(existing?.stock??0),featured:existing?.featured??false});
  const[images,setImages]=useState<string[]>(existing?.images??[]);
  const[files,setFiles]=useState<File[]>([]);
  const[busy,setBusy]=useState(false);
+ const[error,setError]=useState("");
 
  function chooseFiles(list:FileList|null){
-   if(!list)return;
-   const next=Array.from(list);
-   if(images.length+files.length+next.length>6){alert("A product can have up to 6 images.");return}
-   setFiles(cur=>[...cur,...next].slice(0,6-images.length));
+  if(!list)return;
+  const next=Array.from(list).filter(f=>["image/jpeg","image/png","image/webp"].includes(f.type)&&f.size<=4*1024*1024);
+  if(next.length!==Array.from(list).length){setError("Use JPG, PNG or WebP images up to 4 MB each.");return}
+  if(images.length+files.length+next.length>6){setError("A product can have up to 6 images.");return}
+  setFiles(cur=>[...cur,...next].slice(0,6-images.length));
  }
  function removeImage(index:number){setImages(cur=>cur.filter((_,i)=>i!==index))}
  function removeFile(index:number){setFiles(cur=>cur.filter((_,i)=>i!==index))}
  async function submit(e:React.FormEvent){
-   e.preventDefault();
-   if(images.length+files.length<1){alert("Add at least one product image.");return}
-   setBusy(true);
-   try{
-     let allImages=[...images];
-     if(files.length){
-       const fd=new FormData();
-       files.forEach(file=>fd.append("files",file));
-       const u=await fetch("/api/admin/upload",{method:"POST",body:fd});
-       const d=await u.json();
-       if(!u.ok)throw new Error(d.error||"Image upload failed");
-       allImages=[...allImages,...(Array.isArray(d.urls)?d.urls:[d.url]).filter(Boolean)];
-     }
-     if(allImages.length>6)throw new Error("A product can have up to 6 images.");
-     const body={...form,images:allImages};
-     const r=await fetch("/api/admin/products",{method:existing?"PUT":"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(existing?{...body,id:existing.id}:body)});
-     const d=await r.json();
-     if(!r.ok)throw new Error(d.error||"Could not save product");
-     onSaved(d)
-   }catch(e){setError(e instanceof Error?e.message:"Could not save product")}finally{setBusy(false)}
+  e.preventDefault();setError("");
+  const name=form.name.trim(),category=form.category.trim(),description=form.description.trim(),price=Number(form.price),stock=Number(form.stock);
+  const sale=form.salePrice===""?null:Number(form.salePrice);
+  if(name.length<2){setError("Product name must be at least 2 characters.");return}
+  if(category.length<2){setError("Category must be at least 2 characters.");return}
+  if(description.length<5){setError("Description must be at least 5 characters.");return}
+  if(!Number.isFinite(price)||price<0){setError("Enter a valid product price.");return}
+  if(form.salePrice!==""&&(!Number.isFinite(sale)||Number(sale)<0)){setError("Enter a valid sale price.");return}
+  if(!Number.isInteger(stock)||stock<0){setError("Enter a valid whole-number stock quantity.");return}
+  if(images.length+files.length<1){setError("Add at least one product image.");return}
+  if(images.length+files.length>6){setError("A product can have up to 6 images.");return}
+  setBusy(true);
+  try{
+   let allImages=[...images];
+   if(files.length){
+    const fd=new FormData();files.forEach(file=>fd.append("files",file));
+    const u=await fetch("/api/admin/upload",{method:"POST",body:fd});const upload=await u.json();
+    if(!u.ok)throw new Error(upload.error||"Image upload failed.");
+    allImages=[...allImages,...(Array.isArray(upload.urls)?upload.urls:[upload.url]).filter(Boolean)];
+   }
+   const body={name,category,description,price,salePrice:form.salePrice===""?"":sale,stock,featured:form.featured,images:allImages};
+   const r=await fetch("/api/admin/products",{method:existing?"PUT":"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(existing?{...body,id:existing.id}:body)});
+   const data=await r.json();
+   if(!r.ok)throw new Error(data.error||"Could not save product.");
+   onSaved(data);
+  }catch(e){setError(e instanceof Error?e.message:"Could not save product.");}finally{setBusy(false);}
  }
- return <div style={{position:"fixed",inset:0,zIndex:110,background:"rgba(0,0,0,.38)",display:"grid",placeItems:"center",padding:18}}><div className="admin-card" style={{width:"min(720px,100%)",maxHeight:"92vh",overflow:"auto",position:"relative"}}><button className="icon-btn" style={{position:"absolute",right:14,top:14}} onClick={close} aria-label="Close"><X size={17}/></button><div className="eyebrow">Catalog</div><h2 style={{fontSize:32,letterSpacing:"-.05em"}}>{existing?"Edit the product.":"Add a product."}</h2><form className="form-grid" onSubmit={submit}><div className="field"><label>Name</label><input required value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></div><div className="field"><label>Category</label><input required value={form.category} onChange={e=>setForm({...form,category:e.target.value})}/></div><div className="field full"><label>Description</label><textarea required rows={4} value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/></div><div className="field"><label>Price (₦)</label><input required type="number" min="0" value={form.price} onChange={e=>setForm({...form,price:e.target.value})}/></div><div className="field"><label>Sale price (₦)</label><input type="number" min="0" value={form.salePrice} onChange={e=>setForm({...form,salePrice:e.target.value})}/></div><div className="field"><label>Stock</label><input required type="number" min="0" value={form.stock} onChange={e=>setForm({...form,stock:e.target.value})}/></div><div className="field full"><label>Product images</label><input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e=>chooseFiles(e.target.files)}/><span className="helper-text">Add up to 6 JPG, PNG or WebP images. The first image is the main storefront image.</span></div>{(images.length>0||files.length>0)&&<div className="field full"><div className="admin-image-grid">{images.map((img,i)=><div className="admin-image-item" key={img+i}><Image src={img} alt={"Product image "+(i+1)} fill sizes="110px" unoptimized style={{objectFit:"cover"}}/><button type="button" className="admin-image-remove" onClick={()=>removeImage(i)} aria-label={"Remove image "+(i+1)}><X size={13}/></button>{i===0&&<span className="admin-image-label">Main</span>}</div>)}{files.map((file,i)=><div className="admin-image-item file-preview" key={file.name+i}><div><ImagePlus size={22}/><span>{file.name}</span></div><button type="button" className="admin-image-remove" onClick={()=>removeFile(i)} aria-label={"Remove selected image "+(i+1)}><X size={13}/></button>{images.length===0&&i===0&&<span className="admin-image-label">Main</span>}</div>)}</div></div>}<div className="field full"><label>Image URLs (optional)</label><textarea rows={3} placeholder="Paste one image URL per line" onChange={e=>setImages(e.target.value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).slice(0,6-files.length))} value={images.join("\n")}/><span className="helper-text">If you use URLs, one per line. You can also upload files above.</span></div><label className="full" style={{display:"flex",alignItems:"center",gap:8,fontSize:13}}><input type="checkbox" checked={form.featured} onChange={e=>setForm({...form,featured:e.target.checked})}/> Feature this product</label><div className="full" style={{display:"flex",justifyContent:"end",gap:8}}><button type="button" className="btn secondary" onClick={close}>Cancel</button><button className="btn" disabled={busy}>{busy?"Saving...":existing?"Save changes":"Add product"}</button></div></form></div></div>
+ return <div style={{position:"fixed",inset:0,zIndex:110,background:"rgba(0,0,0,.38)",display:"grid",placeItems:"center",padding:18}}><div className="admin-card" style={{width:"min(720px,100%)",maxHeight:"92vh",overflow:"auto",position:"relative"}}><button className="icon-btn" style={{position:"absolute",right:14,top:14}} onClick={close} aria-label="Close"><X size={17}/></button><div className="eyebrow">Catalog</div><h2 style={{fontSize:32,letterSpacing:"-.05em"}}>{existing?"Edit the product.":"Add a product."}</h2><form className="form-grid" onSubmit={submit}><div className="field"><label>Name</label><input required value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></div><div className="field"><label>Category</label><input required value={form.category} onChange={e=>setForm({...form,category:e.target.value})}/></div><div className="field full"><label>Description</label><textarea required rows={4} value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/></div><div className="field"><label>Price (₦)</label><input required type="number" min="0" value={form.price} onChange={e=>setForm({...form,price:e.target.value})}/></div><div className="field"><label>Sale price (₦)</label><input type="number" min="0" value={form.salePrice} onChange={e=>setForm({...form,salePrice:e.target.value})}/></div><div className="field"><label>Stock</label><input required type="number" min="0" value={form.stock} onChange={e=>setForm({...form,stock:e.target.value})}/></div><div className="field full"><label>Product images</label><input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e=>chooseFiles(e.target.files)}/><span className="helper-text">Add up to 6 JPG, PNG or WebP images. The first image is the main storefront image.</span></div>{(images.length>0||files.length>0)&&<div className="field full"><div className="admin-image-grid">{images.map((img,i)=><div className="admin-image-item" key={img+i}><Image src={img} alt={"Product image "+(i+1)} fill sizes="110px" unoptimized style={{objectFit:"cover"}}/><button type="button" className="admin-image-remove" onClick={()=>removeImage(i)} aria-label={"Remove image "+(i+1)}><X size={13}/></button>{i===0&&<span className="admin-image-label">Main</span>}</div>)}{files.map((file,i)=><div className="admin-image-item file-preview" key={file.name+i}><div><ImagePlus size={22}/><span>{file.name}</span></div><button type="button" className="admin-image-remove" onClick={()=>removeFile(i)} aria-label={"Remove selected image "+(i+1)}><X size={13}/></button>{images.length===0&&i===0&&<span className="admin-image-label">Main</span>}</div>)}</div></div>}<div className="field full"><label>Image URLs (optional)</label><textarea rows={3} placeholder="Paste one image URL per line" onChange={e=>setImages(e.target.value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).slice(0,6-files.length))} value={images.join("\n")}/><span className="helper-text">If you use URLs, one per line. You can also upload files above.</span></div>{error&&<div className="field full"><div className="site-notice" role="alert"><div><strong>NIMA.</strong><span>{error}</span></div><button type="button" onClick={()=>setError("")} aria-label="Dismiss error"><X size={15}/></button></div></div>}<label className="full" style={{display:"flex",alignItems:"center",gap:8,fontSize:13}}><input type="checkbox" checked={form.featured} onChange={e=>setForm({...form,featured:e.target.checked})}/> Feature this product</label><div className="full" style={{display:"flex",justifyContent:"end",gap:8}}><button type="button" className="btn secondary" onClick={close}>Cancel</button><button className="btn" disabled={busy}>{busy?"Saving...":existing?"Save changes":"Add product"}</button></div></form></div></div>
 }
