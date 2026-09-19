@@ -2,6 +2,21 @@ import { sql } from "./db";
 
 export type Product={id:string;name:string;slug:string;category:string;description:string;price:string;salePrice:string|null;stock:number;images:string[];featured:boolean;active:boolean};
 export type Order={id:string;orderNumber:string;customerName:string;phone:string;deliveryAddress:string;note:string|null;subtotal:string;deliveryFee:string;total:string;status:string;items:{productId:string;name:string;quantity:number;price:number}[];createdAt:string};
+export type SupportTicket={
+  id:string;
+  ticket_number:string;
+  order_id:string|null;
+  order_number:string|null;
+  customer_name:string;
+  phone:string;
+  category:string;
+  message:string;
+  status:"open"|"in_progress"|"resolved"|"closed";
+  priority:"low"|"normal"|"high"|"urgent";
+  staff_note:string|null;
+  created_at:string;
+  updated_at:string;
+};
 
 const mapProduct=(r:any):Product=>({id:String(r.id),name:r.name,slug:r.slug,category:r.category,description:r.description,price:String(r.price),salePrice:r.sale_price==null?null:String(r.sale_price),stock:Number(r.stock),images:Array.isArray(r.images)?r.images:[],featured:Boolean(r.featured),active:Boolean(r.active)});
 
@@ -53,9 +68,23 @@ export async function getAdminProducts(options:{search?:string;page?:number;page
   return {products:rows.map(mapProduct),total:Number(countRows[0]?.count??0),page,pageSize};
 }
 
-export async function getSupportTickets(){
+export async function getSupportTickets():Promise<SupportTicket[]>{
   const rows=await sql.query("SELECT st.id,st.ticket_number,st.order_id,o.order_number,st.customer_name,st.phone,st.category,st.message,st.status,st.priority,st.staff_note,st.created_at,st.updated_at FROM support_tickets st LEFT JOIN orders o ON o.id=st.order_id ORDER BY st.created_at DESC,st.id DESC LIMIT 100",[]);
-  return rows;
+  return rows.map((r:any):SupportTicket=>({
+    id:String(r.id),
+    ticket_number:String(r.ticket_number),
+    order_id:r.order_id?String(r.order_id):null,
+    order_number:r.order_number?String(r.order_number):null,
+    customer_name:String(r.customer_name),
+    phone:String(r.phone),
+    category:String(r.category),
+    message:String(r.message),
+    status:r.status,
+    priority:r.priority,
+    staff_note:r.staff_note==null?null:String(r.staff_note),
+    created_at:new Date(r.created_at).toISOString(),
+    updated_at:new Date(r.updated_at).toISOString()
+  }));
 }
 
 export async function getRecentOrders(options:{search?:string;status?:string;page?:number;pageSize?:number}={}){
