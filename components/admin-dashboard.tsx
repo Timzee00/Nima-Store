@@ -3,6 +3,7 @@ import Image from"next/image";
 import{AlertTriangle,ChevronLeft,ChevronRight,ImagePlus,LogOut,PackageSearch,PenLine,Plus,RefreshCw,Search,Trash2,X}from"lucide-react";
 import{useEffect,useState}from"react";
 import{ThemeToggle}from"./theme-toggle";
+import{AdminNavigation}from"./admin-navigation";
 import{Order,Product}from"@/lib/store";
 import{OrderReceiptTools}from"./order-receipt-tools";
 
@@ -101,9 +102,10 @@ export function AdminDashboard({initialProducts,initialProductTotal,initialOrder
  const lowPages=Math.max(1,Math.ceil(lowTotal/lowPageSize));
 
  return <div className="admin-shell">
+  <AdminNavigation/>
   <div className="admin-top">
    <div><strong>NIMA.</strong><span className="admin-top-sub">Control room</span></div>
-   <div className="admin-top-actions"><ThemeToggle/><button className="icon-btn admin-refresh" onClick={refresh} aria-label="Refresh dashboard"><RefreshCw size={17}/></button><a className="btn secondary admin-top-btn" href="/admin/support">Support</a><a className="btn secondary admin-top-btn" href="/" target="_blank">View store</a><button className="icon-btn admin-logout" onClick={async()=>{await fetch("/api/admin/logout",{method:"POST"});location.href="/admin/login"}} aria-label="Log out"><LogOut size={16}/></button></div>
+   <div className="admin-top-actions"><ThemeToggle/><button className="icon-btn admin-refresh" onClick={refresh} aria-label="Refresh dashboard"><RefreshCw size={17}/></button><button className="icon-btn admin-logout" onClick={async()=>{await fetch("/api/admin/logout",{method:"POST"});location.href="/admin/login"}} aria-label="Log out"><LogOut size={16}/></button></div>
   </div>
 
   <main className="admin-main">
@@ -113,10 +115,10 @@ export function AdminDashboard({initialProducts,initialProductTotal,initialOrder
     <div className="stat"><span>Products</span><strong>{totals.products.toLocaleString()}</strong></div>
     <div className="stat"><span>Orders</span><strong>{totals.orders.toLocaleString()}</strong></div>
     <div className="stat"><span>Recorded sales</span><strong>{money(totals.sales)}</strong></div>
-    <button className="stat stat-action low-stock-stat" onClick={openLowStock} aria-label={"View "+totals.lowStock+" low stock products"}><span>Low stock</span><strong>{totals.lowStock.toLocaleString()}</strong><small>View affected products</small></button>
+    <button id="low-stock" className="stat stat-action low-stock-stat" onClick={openLowStock} aria-label={"View "+totals.lowStock+" low stock products"}><span>Low stock</span><strong>{totals.lowStock.toLocaleString()}</strong><small>View affected products</small></button>
    </div>
 
-   <section className="admin-card admin-section">
+   <section id="inventory" className="admin-card admin-section">
     <div className="admin-section-head">
      <div><div className="eyebrow">Catalog</div><h2>Inventory</h2><p>{productTotal.toLocaleString()} matching products loaded {productSearch?"for this search":"in this view"} — only one page is held in memory.</p></div>
      <button className="btn" onClick={()=>setModal(null)}><Plus size={16}/> Add product</button>
@@ -193,7 +195,7 @@ export function AdminDashboard({initialProducts,initialProductTotal,initialOrder
     <Pagination page={productPage} pages={productPages} onPrev={()=>setProductPage(p=>Math.max(1,p-1))} onNext={()=>setProductPage(p=>Math.min(productPages,p+1))} label={"Products · page "+productPage+" of "+productPages}/>
    </section>
 
-   <section className="admin-card admin-section">
+   <section id="orders" className="admin-card admin-section">
     <div className="admin-section-head">
      <div><div className="eyebrow">Sales</div><h2>Orders</h2><p>{orderTotal.toLocaleString()} matching orders — the browser only loads {orderPageSize} at a time.</p></div>
     </div>
