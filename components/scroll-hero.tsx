@@ -25,7 +25,7 @@ export function ScrollHero() {
   return <section ref={sectionRef} className={"hero "+(videoReady?"hero-video-enabled":"hero-static")} style={{height:videoReady?"145vh":"92vh"}}>
     <div className="hero-stage">
       <div className="hero-poster" aria-hidden="true"/>
-      <video ref={videoRef} className="hero-video" src="/hero.mp4" poster="/hero-poster.svg" muted playsInline preload="metadata" onLoadedMetadata={()=>setVideoReady(true)} onError={()=>setVideoReady(false)} aria-hidden="true"/>
+      <video ref={videoRef} className="hero-video" src="/nima-hero-6.mp4" poster="/hero-poster.svg" muted playsInline preload="metadata" onLoadedMetadata={()=>setVideoReady(true)} onError={()=>setVideoReady(false)} aria-hidden="true"/>
       <div className="hero-shade"/>
       <div className="hero-content">
         <div className="hero-kicker">Nima Collection</div>
