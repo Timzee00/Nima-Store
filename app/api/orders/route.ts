@@ -103,7 +103,7 @@ ins AS (
    )
  WHERE (SELECT value FROM ok)
    AND (SELECT count(*) FROM updated)=(SELECT count(*) FROM input)
- RETURNING id,subtotal,items
+ RETURNING id,order_number,subtotal,items
 )
 SELECT
  (SELECT id FROM ins) AS id,
@@ -136,6 +136,7 @@ SELECT
 
   return NextResponse.json({
    orderId:String(row.id),
+   orderNumber:String(row.order_number),
    subtotal:Number(row.subtotal??0),
    items:Array.isArray(row.items)?row.items:[]
   });
