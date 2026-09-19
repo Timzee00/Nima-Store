@@ -16,7 +16,17 @@ const base=z.object({
 const edit=base.extend({id:z.string().uuid("Invalid product reference.")});
 function slugify(x:string){return x.toLowerCase().trim().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"")}
 function validationResponse(error:any){const issue=error.issues?.[0];return NextResponse.json({error:issue?.message||"Check the product fields.",field:issue?.path?.join(".")||null},{status:400})}
-export async function GET(){if(!await getAdminSession())return NextResponse.json({error:"Unauthorized"},{status:401});return NextResponse.json(await getAdminProducts())}
+
+export async function GET(req:Request){
+ if(!await getAdminSession())return NextResponse.json({error:"Unauthorized"},{status:401});
+ const q=new URL(req.url).searchParams;
+ const page=Math.max(1,Number(q.get("page")||"1")||1);
+ const pageSize=Math.min(50,Math.max(1,Number(q.get("limit")||"24")||24));
+ const search=(q.get("search")||"").trim();
+ const lowStock=q.get("lowStock")==="true";
+ return NextResponse.json(await getAdminProducts({search,page,pageSize,lowStock}));
+}
+
 export async function POST(req:Request){
  if(!await getAdminSession())return NextResponse.json({error:"Unauthorized"},{status:401});
  try{
@@ -30,6 +40,7 @@ export async function POST(req:Request){
   return NextResponse.json(rows[0]);
  }catch(e){console.error("Product create failed",e);return NextResponse.json({error:"Could not create product."},{status:500})}
 }
+
 export async function PUT(req:Request){
  if(!await getAdminSession())return NextResponse.json({error:"Unauthorized"},{status:401});
  try{
@@ -42,6 +53,7 @@ export async function PUT(req:Request){
   return NextResponse.json(rows[0]);
  }catch(e){console.error("Product update failed",e);return NextResponse.json({error:"Could not update product."},{status:500})}
 }
+
 export async function DELETE(req:Request){
  if(!await getAdminSession())return NextResponse.json({error:"Unauthorized"},{status:401});
  const id=new URL(req.url).searchParams.get("id");
