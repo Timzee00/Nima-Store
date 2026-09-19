@@ -34,6 +34,7 @@ export async function getAdminProducts(){
   const rows=await sql.query("SELECT id,name,slug,category,description,price,sale_price,stock,images,featured,active FROM products ORDER BY created_at DESC",[]);
   return rows.map(mapProduct);
 }
+export async function getSupportTickets(){ const rows=await sql.query("SELECT id,ticket_number,order_id,customer_name,phone,category,message,status,priority,staff_note,created_at,updated_at FROM support_tickets ORDER BY created_at DESC LIMIT 100",[]); return rows; }
 export async function getRecentOrders(){
   const rows=await sql.query("SELECT id,customer_name,phone,delivery_address,note,subtotal,delivery_fee,total,status,items,created_at FROM orders ORDER BY created_at DESC LIMIT 40",[]);
   return rows.map((r:any):Order=>({id:String(r.id),customerName:r.customer_name,phone:r.phone,deliveryAddress:r.delivery_address,note:r.note,subtotal:String(r.subtotal),deliveryFee:String(r.delivery_fee),total:String(r.total),status:r.status,items:Array.isArray(r.items)?r.items:[],createdAt:new Date(r.created_at).toISOString()}));
