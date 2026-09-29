@@ -75,6 +75,12 @@ export async function getHomepageProducts(limit=20){
  return enrichProducts(rows.map(mapProduct),true);
 }
 
+export async function getHomepageFeaturedProducts(limit=12){
+ const safeLimit=Math.min(24,Math.max(4,Math.floor(limit)||12));
+ const rows=await sql.query("SELECT id,name,slug,category,description,price,sale_price,stock,images,featured,active FROM products WHERE active=true AND stock>0 AND featured=true ORDER BY updated_at DESC,created_at DESC,id DESC LIMIT $1",[safeLimit]);
+ return enrichProducts(rows.map(mapProduct),true);
+}
+
 export async function getHomepageCategories(limit=6){
  const safeLimit=Math.min(8,Math.max(3,Math.floor(limit)||6));
  const rows=await sql.query("WITH counts AS (SELECT category,COUNT(*)::int count FROM products WHERE active=true GROUP BY category),hero AS (SELECT DISTINCT ON(category) category,images->>0 image FROM products WHERE active=true AND jsonb_array_length(images)>0 ORDER BY category,featured DESC,updated_at DESC,created_at DESC) SELECT counts.category,counts.count,hero.image FROM counts LEFT JOIN hero ON hero.category=counts.category ORDER BY counts.count DESC,counts.category ASC LIMIT $1",[safeLimit]);
@@ -99,7 +105,7 @@ export async function getHomepageGalleryImages(limit=20){
 export async function getStoreProducts(options:{search?:string;category?:string;page?:number;pageSize?:number}={}){
  const search=options.search?.trim()??"",category=options.category?.trim()??"",page=Math.max(1,Math.floor(options.page??1)),pageSize=Math.min(48,Math.max(12,Math.floor(options.pageSize??24))),like="%"+search+"%";
  const[countRows,rows]=await Promise.all([
-  sql.query("SELECT COUNT(*)::int count FROM products WHERE active=true AND ($1='' OR category=$1) AND ($2='' OR name ILIKE $3 OR category ILIKE $3)",[category,search,like]),
+  sql.query("SELECT COUNT(*)::int count FROM products WHERE active=true AND ($1='' OR category=$1) AND ($2='' OR name ILIKE $3)",[category,search,like]),
   sql.query("SELECT id,name,slug,category,description,price,sale_price,stock,images,featured,active FROM products WHERE active=true AND ($1='' OR category=$1) AND ($2='' OR name ILIKE $3 OR category ILIKE $3) ORDER BY CASE WHEN stock>0 THEN 0 ELSE 1 END,featured DESC,created_at DESC,id DESC LIMIT $4 OFFSET $5",[category,search,like,pageSize,(page-1)*pageSize])
  ]);
  return {products:await enrichProducts(rows.map(mapProduct)),total:Number(countRows[0]?.count??0),page,pageSize,category,search};
