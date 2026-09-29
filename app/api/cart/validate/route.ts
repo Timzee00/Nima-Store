@@ -16,7 +16,7 @@ export async function POST(req:Request){
  try{
   const parsed=schema.safeParse(await req.json());
   if(!parsed.success)return NextResponse.json({error:"Invalid bag contents."},{status:400});
-  const input=parsed.data,ids=input.map(item=>item.id),names=input.map(item=>item.name.trim().toLowerCase()),hasVariants=input.some(item=>!!item.variantId);
+  const input=parsed.data.items,ids=input.map(item=>item.id),names=input.map(item=>item.name.trim().toLowerCase()),hasVariants=input.some(item=>!!item.variantId);
   if(hasVariants)await ensureProductVariantsTable();
 
   const rows=hasVariants

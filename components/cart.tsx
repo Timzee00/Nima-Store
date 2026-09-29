@@ -317,7 +317,7 @@ export function CheckoutForm() {
         "I'd like to place an order:",
         "",
         ...verifiedItems.map(
-          (item: { quantity: number; name: string; price: number }) =>
+          (item: { quantity: number; name: string; price: number; options?: Record<string,string> }) =>
             item.quantity +
             " × " +
             item.name +
@@ -368,7 +368,7 @@ export function CheckoutForm() {
 
         <div className="checkout-products">
           {items.map((item) => (
-            <div className="checkout-product" key={item.productId}>
+            <div className="checkout-product" key={getCartItemKey(item)}>
               <div className="checkout-product-image">
                 {item.image && (
                   <Image
@@ -383,6 +383,7 @@ export function CheckoutForm() {
               </div>
               <div>
                 <strong>{item.name}</strong>
+                {item.options&&<div className="checkout-product-options">{Object.entries(item.options).map(([name,value])=><span key={name}>{name}: {value}</span>)}</div>}
                 <div className="checkout-product-meta">
                   Qty {item.quantity} · ₦{(item.price * item.quantity).toLocaleString()}
                 </div>
