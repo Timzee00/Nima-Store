@@ -37,6 +37,7 @@ export function ProductPurchasePanel({product}:{product:Product}){
      <input type="radio" name={"variant-"+product.id+"-"+name} value={value} checked={selection[name]===value} disabled={!available(name,value)} onChange={()=>choose(name,value)}/>
      <span className="radio-mark" aria-hidden="true">{selection[name]===value?<Check size={12}/>:null}</span><span>{value}</span>
     </label>)}</div>
+    :values.length<=12?<div className="size-button-list" role="radiogroup" aria-label={name}>{values.map(value=><button type="button" className={"size-choice "+(selection[name]===value?"selected ":"")+(available(name,value)?"":" disabled")} disabled={!available(name,value)} aria-pressed={selection[name]===value} onClick={()=>choose(name,value)} key={value}>{value}</button>)}</div>
     :<label className="product-select-wrap"><span className="sr-only">{name}</span><select value={selection[name]||""} onChange={event=>{if(event.target.value)choose(name,event.target.value)}} aria-label={"Choose "+name}>
       <option value="">Choose {name.toLowerCase()}</option>{values.map(value=><option key={value} value={value} disabled={!available(name,value)}>{value}{!available(name,value)?" — unavailable":""}</option>)}
     </select><ChevronDown size={16} aria-hidden="true"/></label>}
