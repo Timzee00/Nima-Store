@@ -18,7 +18,7 @@ export function HomeHighlights({products,categories}:{products:Product[];categor
  return <section className="home-highlights section">
   <div className="container">
    <div className="home-highlight-head">
-    <div><div className="eyebrow">Fresh from the edit</div><h2>Good things, without the endless scroll.</h2><p>We surface a small, current selection here. The full catalogue lives on Shop.</p></div>
+    <div><div className="eyebrow">Fresh from the edit</div><h2>Good things, without the endless scroll.</h2><p>We surface a rotating selection here. The full catalogue lives on Shop.</p></div>
     <div className="home-highlight-controls">
      <button className="icon-btn" onClick={()=>move(-1)} aria-label="Previous products"><ChevronLeft size={18}/></button>
      <button className="icon-btn" onClick={()=>move(1)} aria-label="Next products"><ChevronRight size={18}/></button>

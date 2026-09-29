@@ -9,7 +9,7 @@ import{OrderReceiptTools}from"./order-receipt-tools";
 
 const money=(n:number|string)=>"₦"+Number(n).toLocaleString();
 
-export function AdminDashboard({initialProducts,initialProductTotal,initialOrders,initialOrderTotal,stats}:{initialProducts:Product[];initialProductTotal:number;initialOrders:Order[];initialOrderTotal:number;stats:{products:number;orders:number;sales:number;lowStock:number}}){
+export function AdminDashboard({initialProducts,initialProductTotal,initialOrders,initialOrderTotal,stats,categorySuggestions}:{initialProducts:Product[];initialProductTotal:number;initialOrders:Order[];initialOrderTotal:number;stats:{products:number;orders:number;sales:number;lowStock:number};categorySuggestions:{labels:string[];products:number}[]}){
  const[products,setProducts]=useState(initialProducts),[productTotal,setProductTotal]=useState(initialProductTotal),[productPage,setProductPage]=useState(1),[productSearch,setProductSearch]=useState(""),[productBusy,setProductBusy]=useState(false);
  const[orders,setOrders]=useState(initialOrders),[orderTotal,setOrderTotal]=useState(initialOrderTotal),[orderPage,setOrderPage]=useState(1),[orderSearch,setOrderSearch]=useState(""),[orderStatus,setOrderStatus]=useState(""),[orderBusy,setOrderBusy]=useState(false);
  const[totals,setTotals]=useState(stats),[modal,setModal]=useState<Product|null|false>(false),[selectedOrder,setSelectedOrder]=useState<Order|null>(null),[lowOpen,setLowOpen]=useState(false),[lowProducts,setLowProducts]=useState<Product[]>([]),[lowPage,setLowPage]=useState(1),[lowTotal,setLowTotal]=useState(0),[lowBusy,setLowBusy]=useState(false),[toast,setToast]=useState("");
@@ -117,6 +117,7 @@ export function AdminDashboard({initialProducts,initialProductTotal,initialOrder
     <div className="stat"><span>Recorded sales</span><strong>{money(totals.sales)}</strong></div>
     <button id="low-stock" className="stat stat-action low-stock-stat" onClick={openLowStock} aria-label={"View "+totals.lowStock+" low stock products"}><span>Low stock</span><strong>{totals.lowStock.toLocaleString()}</strong><small>View affected products</small></button>
    </div>
+   {categorySuggestions.length>0&&<section className="admin-card admin-suggestions"><div className="admin-suggestion-head"><div><div className="eyebrow">Smart housekeeping</div><h2>Catalog suggestions</h2><p>Some category labels look like the same category after normalizing case and punctuation. Review before merging; nothing is changed automatically.</p></div><a className="btn secondary" href="#inventory">Review inventory</a></div><div className="admin-suggestion-list">{categorySuggestions.map(group=><div className="admin-suggestion-row" key={group.labels.join("|")}><div><strong>{group.labels.join(" / ")}</strong><span>{group.products.toLocaleString()} active products across these labels</span></div><a className="pill" href={"/shop?category="+encodeURIComponent(group.labels[0])} target="_blank" rel="noreferrer">View one label</a></div>)}</div></section>
 
    <section id="inventory" className="admin-card admin-section">
     <div className="admin-section-head">
