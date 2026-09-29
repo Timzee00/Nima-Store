@@ -30,9 +30,7 @@ export async function POST(req:Request){
   if(hasVariants)await ensureProductVariantsTable();
 
   const productIds=[...new Set(d.items.map(item=>item.productId))];
-  const lockQuery=hasVariants
-   ?"SELECT p.id,pv.id variant_id FROM products p LEFT JOIN product_variants pv ON pv.product_id=p.id WHERE p.id=ANY($1::uuid[]) FOR UPDATE OF p,pv"
-   :"SELECT id FROM products WHERE id=ANY($1::uuid[]) FOR UPDATE";
+  const lockQuery="SELECT id FROM products WHERE id=ANY($1::uuid[]) FOR UPDATE";
   
   const payload=JSON.stringify(d.items.map(item=>({requested_id:item.productId,requested_name:item.name,requested_variant_id:item.variantId||null,quantity:item.quantity})));
   const writeQuery=[

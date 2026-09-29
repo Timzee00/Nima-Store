@@ -21,7 +21,7 @@ export default async function Home() {
     getHomepageGalleryImages(24),
   ]);
 
-  const grid = [];
+  const grid: typeof latest = [];
   const seen = new Set<string>();
 
   for (const product of latest) {
