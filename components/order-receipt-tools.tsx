@@ -78,7 +78,7 @@ export function OrderReceiptTools({order}:{order:Order}){
      <section><div className="receipt-label">Delivery address</div><span>{order.deliveryAddress}</span></section>
     </div>
     <div className="receipt-label receipt-items-label">Purchased items</div>
-    <div className="receipt-items">{items.map((item,i)=><div className="receipt-item" key={(item.productId||"item")+i}><div><strong>{item.name}</strong><span>Qty {item.quantity} · {money(item.price)} each</span></div><strong>{money(Number(item.price)*item.quantity)}</strong></div>)}</div>
+    <div className="receipt-items">{items.map((item,i)=><div className="receipt-item" key={(item.productId||"item")+i}><div><strong>{item.name}</strong><span>Qty {item.quantity} · {money(item.price)} each{item.options&&" · "+Object.entries(item.options).map(([name,value])=>name+": "+value).join(" · ")}</span></div><strong>{money(Number(item.price)*item.quantity)}</strong></div>)}</div>
     <div className="receipt-total"><span>Subtotal</span><strong>{money(order.subtotal)}</strong></div>
     <div className="receipt-total"><span>Delivery</span><strong>{money(order.deliveryFee)}</strong></div>
     <div className="receipt-total receipt-grand"><span>Total</span><strong>{money(order.total)}</strong></div>

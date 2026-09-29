@@ -3,6 +3,7 @@ import Image from"next/image";
 import{AlertTriangle,ChevronLeft,ChevronRight,ImagePlus,LogOut,PackageSearch,PenLine,Plus,RefreshCw,Search,Trash2,X}from"lucide-react";
 import{useEffect,useState}from"react";
 import{ThemeToggle}from"./theme-toggle";
+import{ProductVariantsEditor,VariantDraft}from"./product-variants-editor";
 import{AdminNavigation}from"./admin-navigation";
 import{Order,Product}from"@/lib/store";
 import{OrderReceiptTools}from"./order-receipt-tools";
@@ -244,7 +245,7 @@ function OrderDetail({order,close,onStatusChange}:{order:Order;close:()=>void;on
   <div className="admin-modal-head"><div><div className="eyebrow">Complete order</div><h2>{order.orderNumber}</h2><p>{new Date(order.createdAt).toLocaleString()}</p></div><button className="icon-btn" onClick={close} aria-label="Close order details"><X size={17}/></button></div>
   <div className="order-detail-status"><span className={"order-status order-status-"+order.status}>{order.status.replace("_"," ")}</span><label>Status<select className="status" value={order.status} onChange={e=>onStatusChange(e.target.value)}><option value="pending">Pending</option><option value="confirmed">Confirmed</option><option value="fulfilled">Fulfilled</option><option value="cancelled">Cancelled</option></select></label></div>
   <div className="order-detail-grid"><section><div className="eyebrow">Customer</div><strong>{order.customerName}</strong><div>{order.phone}</div></section><section><div className="eyebrow">Delivery</div><div>{order.deliveryAddress}</div></section></div>
-  <section><div className="eyebrow">Purchased items · {items.length}</div><div className="order-detail-items">{items.length?items.map((item,i)=><div className="order-detail-item" key={(item.productId||"item")+i}><div><strong>{item.name}</strong><span>Qty {item.quantity} · {money(item.price)} each</span></div><strong>{money(Number(item.price)*item.quantity)}</strong></div>):<div className="order-detail-empty">No item details were saved with this order.</div>}</div></section>
+  <section><div className="eyebrow">Purchased items · {items.length}</div><div className="order-detail-items">{items.length?items.map((item,i)=><div className="order-detail-item" key={(item.productId||"item")+i}><div><strong>{item.name}</strong><span>Qty {item.quantity} · {money(item.price)} each{item.options&&" · "+Object.entries(item.options).map(([name,value])=>name+": "+value).join(" · ")}</span></div><strong>{money(Number(item.price)*item.quantity)}</strong></div>):<div className="order-detail-empty">No item details were saved with this order.</div>}</div></section>
   <div className="order-detail-total"><span>Subtotal</span><strong>{money(order.subtotal)}</strong></div><div className="order-detail-total"><span>Delivery fee</span><strong>{money(order.deliveryFee)}</strong></div><div className="order-detail-total order-detail-grand"><span>Total</span><strong>{money(order.total)}</strong></div>
   {order.note&&<div className="order-detail-note"><div className="eyebrow">Customer note</div><p>{order.note}</p></div>}
   <OrderReceiptTools order={order}/>
@@ -256,45 +257,60 @@ function ProductModal({existing,close,onSaved}:{existing?:Product;close:()=>void
  const[form,setForm]=useState({name:existing?.name??"",category:existing?.category??"Slippers",description:existing?.description??"",price:existing?.price??"",salePrice:existing?.salePrice??"",stock:String(existing?.stock??0),featured:existing?.featured??false});
  const[images,setImages]=useState<string[]>(existing?.images??[]);
  const[files,setFiles]=useState<File[]>([]);
- const[busy,setBusy]=useState(false);
- const[error,setError]=useState("");
-
+ const[variants,setVariants]=useState<VariantDraft[]>((existing?.variants||[]).map(v=>({id:v.id,options:v.options,price:Number(v.price),stock:v.stock,sku:v.sku||""})));
+ const[variantsEnabled,setVariantsEnabled]=useState(!!(existing?.variants||[]).length);
+ const[busy,setBusy]=useState(false),[error,setError]=useState("");
  function chooseFiles(list:FileList|null){
   if(!list)return;
-  const next=Array.from(list).filter(f=>["image/jpeg","image/png","image/webp"].includes(f.type)&&f.size<=4*1024*1024);
-  if(next.length!==Array.from(list).length){setError("Use JPG, PNG or WebP images up to 4 MB each.");return}
-  if(images.length+files.length+next.length>6){setError("A product can have up to 6 images.");return}
-  setFiles(cur=>[...cur,...next].slice(0,6-images.length));
+  const picked=Array.from(list),valid=picked.filter(file=>["image/jpeg","image/png","image/webp"].includes(file.type)&&file.size<=4*1024*1024);
+  if(valid.length!==picked.length){setError("Use JPG, PNG or WebP images up to 4 MB each.");return}
+  if(images.length+files.length+valid.length>6){setError("A product can have up to 6 images.");return}
+  setFiles(current=>[...current,...valid].slice(0,6-images.length));
  }
- function removeImage(index:number){setImages(cur=>cur.filter((_,i)=>i!==index))}
- function removeFile(index:number){setFiles(cur=>cur.filter((_,i)=>i!==index))}
- async function submit(e:React.FormEvent){
-  e.preventDefault();setError("");
-  const name=form.name.trim(),category=form.category.trim(),description=form.description.trim(),price=Number(form.price),stock=Number(form.stock);
-  const sale=form.salePrice===""?null:Number(form.salePrice);
-  if(name.length<2){setError("Product name must be at least 2 characters.");return}
-  if(category.length<2){setError("Category must be at least 2 characters.");return}
-  if(description.length<5){setError("Description must be at least 5 characters.");return}
+ function removeImage(index:number){setImages(current=>current.filter((_,i)=>i!==index))}
+ function removeFile(index:number){setFiles(current=>current.filter((_,i)=>i!==index))}
+ async function submit(event:React.FormEvent){
+  event.preventDefault();setError("");
+  const name=form.name.trim(),category=form.category.trim(),description=form.description.trim(),price=Number(form.price),stock=Number(form.stock),sale=form.salePrice===""?null:Number(form.salePrice);
+  if(name.length<2||category.length<2||description.length<5){setError("Complete the product name, category and description.");return}
   if(!Number.isFinite(price)||price<0){setError("Enter a valid product price.");return}
   if(form.salePrice!==""&&(!Number.isFinite(sale)||Number(sale)<0)){setError("Enter a valid sale price.");return}
   if(!Number.isInteger(stock)||stock<0){setError("Enter a valid whole-number stock quantity.");return}
   if(images.length+files.length<1){setError("Add at least one product image.");return}
-  if(images.length+files.length>6){setError("A product can have up to 6 images.");return}
+  if(variantsEnabled&&variants.length===0){setError("Generate the option combinations before saving.");return}
   setBusy(true);
   try{
    let allImages=[...images];
    if(files.length){
-    const fd=new FormData();files.forEach(file=>fd.append("files",file));
-    const u=await fetch("/api/admin/upload",{method:"POST",body:fd});const upload=await u.json();
-    if(!u.ok)throw new Error(upload.error||"Image upload failed.");
+    const data=new FormData();files.forEach(file=>data.append("files",file));
+    const response=await fetch("/api/admin/upload",{method:"POST",body:data}),upload=await response.json();
+    if(!response.ok)throw new Error(upload.error||"Image upload failed.");
     allImages=[...allImages,...(Array.isArray(upload.urls)?upload.urls:[upload.url]).filter(Boolean)];
    }
-   const body={name,category,description,price,salePrice:form.salePrice===""?"":sale,stock,featured:form.featured,images:allImages};
-   const r=await fetch("/api/admin/products",{method:existing?"PUT":"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(existing?{...body,id:existing.id}:body)});
-   const data=await r.json();
-   if(!r.ok)throw new Error(data.error||"Could not save product.");
-   onSaved(data);
-  }catch(e){setError(e instanceof Error?e.message:"Could not save product.");}finally{setBusy(false);}
+   const payload={name,category,description,price,salePrice:form.salePrice===""?"":sale,stock,featured:form.featured,images:allImages,variants:variantsEnabled?variants:[]};
+   const response=await fetch("/api/admin/products",{method:existing?"PUT":"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(existing?{...payload,id:existing.id}:payload)});
+   const saved=await response.json();
+   if(!response.ok)throw new Error(saved.error||"Could not save product.");
+   onSaved(saved);
+  }catch(cause){setError(cause instanceof Error?cause.message:"Could not save product.");}finally{setBusy(false);}
  }
- return <div style={{position:"fixed",inset:0,zIndex:110,background:"rgba(0,0,0,.38)",display:"grid",placeItems:"center",padding:18}}><div className="admin-card" style={{width:"min(720px,100%)",maxHeight:"92vh",overflow:"auto",position:"relative"}}><button className="icon-btn" style={{position:"absolute",right:14,top:14}} onClick={close} aria-label="Close"><X size={17}/></button><div className="eyebrow">Catalog</div><h2 style={{fontSize:32,letterSpacing:"-.05em"}}>{existing?"Edit the product.":"Add a product."}</h2><form className="form-grid" onSubmit={submit}><div className="field"><label>Name</label><input required value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></div><div className="field"><label>Category</label><input required value={form.category} onChange={e=>setForm({...form,category:e.target.value})}/></div><div className="field full"><label>Description</label><textarea required rows={4} value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/></div><div className="field"><label>Price (₦)</label><input required type="number" min="0" value={form.price} onChange={e=>setForm({...form,price:e.target.value})}/></div><div className="field"><label>Sale price (₦)</label><input type="number" min="0" value={form.salePrice} onChange={e=>setForm({...form,salePrice:e.target.value})}/></div><div className="field"><label>Stock</label><input required type="number" min="0" value={form.stock} onChange={e=>setForm({...form,stock:e.target.value})}/></div><div className="field full"><label>Product images</label><input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e=>chooseFiles(e.target.files)}/><span className="helper-text">Add up to 6 JPG, PNG or WebP images. The first image is the main storefront image.</span></div>{(images.length>0||files.length>0)&&<div className="field full"><div className="admin-image-grid">{images.map((img,i)=><div className="admin-image-item" key={img+i}><Image src={img} alt={"Product image "+(i+1)} fill sizes="110px" unoptimized style={{objectFit:"cover"}}/><button type="button" className="admin-image-remove" onClick={()=>removeImage(i)} aria-label={"Remove image "+(i+1)}><X size={13}/></button>{i===0&&<span className="admin-image-label">Main</span>}</div>)}{files.map((file,i)=><div className="admin-image-item file-preview" key={file.name+i}><div><ImagePlus size={22}/><span>{file.name}</span></div><button type="button" className="admin-image-remove" onClick={()=>removeFile(i)} aria-label={"Remove selected image "+(i+1)}><X size={13}/></button>{images.length===0&&i===0&&<span className="admin-image-label">Main</span>}</div>)}</div></div>}<div className="field full"><label>Image URLs (optional)</label><textarea rows={3} placeholder="Paste one image URL per line" onChange={e=>setImages(e.target.value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).slice(0,6-files.length))} value={images.join("\n")}/><span className="helper-text">If you use URLs, one per line. You can also upload files above.</span></div>{error&&<div className="field full"><div className="site-notice" role="alert"><div><strong>NIMA.</strong><span>{error}</span></div><button type="button" onClick={()=>setError("")} aria-label="Dismiss error"><X size={15}/></button></div></div>}<label className="full" style={{display:"flex",alignItems:"center",gap:8,fontSize:13}}><input type="checkbox" checked={form.featured} onChange={e=>setForm({...form,featured:e.target.checked})}/> Feature this product</label><div className="full" style={{display:"flex",justifyContent:"end",gap:8}}><button type="button" className="btn secondary" onClick={close}>Cancel</button><button className="btn" disabled={busy}>{busy?"Saving...":existing?"Save changes":"Add product"}</button></div></form></div></div>
+ return <div className="admin-modal-overlay" onMouseDown={close}><div className="admin-modal-card product-modal-card" role="dialog" aria-modal="true" aria-label={existing?"Edit product":"Add product"} onMouseDown={event=>event.stopPropagation()}>
+  <button className="icon-btn" onClick={close} aria-label="Close"><X size={17}/></button>
+  <div className="eyebrow">Catalog</div><h2>{existing?"Edit the product.":"Add a product."}</h2>
+  <form className="form-grid" onSubmit={submit}>
+   <div className="field"><label>Name</label><input required value={form.name} onChange={event=>setForm({...form,name:event.target.value})}/></div>
+   <div className="field"><label>Category</label><input required value={form.category} onChange={event=>setForm({...form,category:event.target.value})}/></div>
+   <div className="field full"><label>Description</label><textarea required rows={4} value={form.description} onChange={event=>setForm({...form,description:event.target.value})}/></div>
+   <div className="field"><label>Price (₦)</label><input required type="number" min="0" value={form.price} onChange={event=>setForm({...form,price:event.target.value})}/></div>
+   <div className="field"><label>Sale price (₦)</label><input type="number" min="0" value={form.salePrice} onChange={event=>setForm({...form,salePrice:event.target.value})}/></div>
+   <div className="field"><label>Stock {variantsEnabled&&<span className="muted-inline">calculated from options</span>}</label><input required type="number" min="0" value={form.stock} disabled={variantsEnabled} onChange={event=>setForm({...form,stock:event.target.value})}/></div>
+   <div className="field full"><label>Product images</label><input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={event=>chooseFiles(event.target.files)}/><span className="helper-text">Up to 6 JPG, PNG or WebP images. The first image is the main storefront image.</span></div>
+   {(images.length>0||files.length>0)&&<div className="field full"><div className="admin-image-grid">{images.map((image,index)=><div className="admin-image-item" key={image+index}><Image src={image} alt={"Product image "+(index+1)} fill sizes="110px" unoptimized style={{objectFit:"cover"}}/><button type="button" className="admin-image-remove" onClick={()=>removeImage(index)} aria-label={"Remove image "+(index+1)}><X size={13}/></button>{index===0&&<span className="admin-image-label">Main</span>}</div>)}{files.map((file,index)=><div className="admin-image-item file-preview" key={file.name+index}><div><ImagePlus size={22}/><span>{file.name}</span></div><button type="button" className="admin-image-remove" onClick={()=>removeFile(index)} aria-label={"Remove selected image "+(index+1)}><X size={13}/></button>{images.length===0&&index===0&&<span className="admin-image-label">Main</span>}</div>)}</div></div>}
+   <div className="field full"><label>Image URLs (optional)</label><textarea rows={3} placeholder="Paste one image URL per line" value={images.join("\n")} onChange={event=>setImages(event.target.value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).slice(0,6-files.length))}/></div>
+   <div className="field full"><ProductVariantsEditor enabled={variantsEnabled} onEnabledChange={setVariantsEnabled} value={variants} onChange={setVariants} basePrice={Number(form.price)||0}/></div>
+   {error&&<div className="field full"><div className="site-notice" role="alert"><div><strong>NIMA.</strong><span>{error}</span></div><button type="button" onClick={()=>setError("")} aria-label="Dismiss error"><X size={15}/></button></div></div>}
+   <label className="full" style={{display:"flex",alignItems:"center",gap:8,fontSize:13}}><input type="checkbox" checked={form.featured} onChange={event=>setForm({...form,featured:event.target.checked})}/> Feature this product</label>
+   <div className="full product-modal-actions"><button type="button" className="btn secondary" onClick={close}>Cancel</button><button className="btn" disabled={busy}>{busy?"Saving...":existing?"Save changes":"Add product"}</button></div>
+  </form>
+ </div></div>;
 }

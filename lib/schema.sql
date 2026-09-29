@@ -75,3 +75,20 @@ CREATE INDEX IF NOT EXISTS orders_order_number_trgm_idx ON orders USING gin (low
 CREATE INDEX IF NOT EXISTS orders_customer_name_trgm_idx ON orders USING gin (lower(customer_name) gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS orders_phone_trgm_idx ON orders USING gin (phone gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS orders_created_id_idx ON orders(created_at DESC,id DESC);
+
+
+-- Optional per-product size/color/style variants.
+CREATE TABLE IF NOT EXISTS product_variants (
+ id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+ product_id uuid NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+ option_key varchar(500) NOT NULL,
+ options jsonb NOT NULL DEFAULT '{}'::jsonb,
+ price numeric(12,2) NOT NULL CHECK(price>=0),
+ stock integer NOT NULL DEFAULT 0 CHECK(stock>=0),
+ sku varchar(120),
+ created_at timestamptz NOT NULL DEFAULT now(),
+ updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS product_variants_product_key_idx ON product_variants(product_id,option_key);
+CREATE INDEX IF NOT EXISTS product_variants_product_idx ON product_variants(product_id);
+CREATE INDEX IF NOT EXISTS product_variants_stock_idx ON product_variants(product_id,stock);

@@ -11,7 +11,12 @@ export type CartItem = {
   price: number;
   image: string;
   quantity: number;
+  variantId?: string;
+  options?: Record<string,string>;
 };
+export function getCartItemKey(item:Pick<CartItem,"productId"|"variantId">){
+  return item.productId+"::"+(item.variantId||"base");
+}
 
 type CartContextValue = {
   items: CartItem[];
@@ -22,7 +27,7 @@ type CartContextValue = {
   change: (id: string, delta: number) => void;
   remove: (id: string) => void;
   removeMany: (ids: string[]) => void;
-  syncItems: (updates: { fromId: string; product: { id: string; name: string; price: number; image: string } }[]) => void;
+  syncItems: (updates: { fromId: string; fromVariantId?: string; product: { id: string; name: string; price: number; image: string; variantId?: string; options?: Record<string,string> } }[]) => void;
   clear: () => void;
   open: () => void;
 };
@@ -64,36 +69,32 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       subtotal,
       add: (item, quantity = 1) =>
         setItems((current) => {
-          const existing = current.find((entry) => entry.productId === item.productId);
-          if (existing) {
-            return current.map((entry) =>
-              entry.productId === item.productId
-                ? { ...entry, quantity: entry.quantity + quantity }
-                : entry
-            );
-          }
-          return [...current, { ...item, quantity }];
+          const key=getCartItemKey(item);
+          const existing=current.find(entry=>getCartItemKey(entry)===key);
+          if(existing)return current.map(entry=>getCartItemKey(entry)===key?{...entry,quantity:entry.quantity+quantity}:entry);
+          return [...current,{...item,quantity}];
         }),
       change: (id, delta) =>
         setItems((current) =>
           current.flatMap((item) => {
-            if (item.productId !== id) return [item];
+            if (getCartItemKey(item)!==id && !(item.productId===id&&!item.variantId)) return [item];
             const quantity = item.quantity + delta;
             return quantity > 0 ? [{ ...item, quantity }] : [];
           })
         ),
-      remove: (id) => setItems((current) => current.filter((item) => item.productId !== id)),
+      remove: (id) => setItems(current => current.filter(item => getCartItemKey(item)!==id && !(item.productId===id&&!item.variantId))),
       syncItems: (updates) => {
         if (!updates.length) return;
-        const byOldId = new Map(updates.map((update) => [update.fromId, update.product]));
-        setItems((current) => current.map((item) => {
-          const product = byOldId.get(item.productId);
-          return product ? { ...item, productId: product.id, name: product.name, price: product.price, image: product.image || item.image } : item;
+        const byKey=new Map(updates.map(update=>[getCartItemKey({productId:update.fromId,variantId:update.fromVariantId}),update.product]));
+        const byProduct=new Map(updates.filter(update=>!update.fromVariantId).map(update=>[update.fromId,update.product]));
+        setItems(current=>current.map(item=>{
+          const product=byKey.get(getCartItemKey(item))||byProduct.get(item.productId);
+          return product?{...item,productId:product.id,name:product.name,price:product.price,image:product.image||item.image,variantId:product.variantId||item.variantId,options:product.options||item.options}:item;
         }));
       },
       removeMany: (ids) => {
-        const blocked = new Set(ids);
-        setItems((current) => current.filter((item) => !blocked.has(item.productId)));
+        const blocked=new Set(ids);
+        setItems(current=>current.filter(item=>!blocked.has(getCartItemKey(item))&&!blocked.has(item.productId)));
       },
       clear: () => setItems([]),
       open: () => setOpen(true),
@@ -128,7 +129,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
               </div>
             ) : (
               value.items.map((item) => (
-                <div className="cart-item" key={item.productId}>
+                <div className="cart-item" key={getCartItemKey(item)}>
                   <div className="cart-thumb">
                     {item.image && (
                       <Image
@@ -144,17 +145,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
                   <div>
                     <strong style={{ fontSize: 14 }}>{item.name}</strong>
-                    <div className="price">₦{item.price.toLocaleString()}</div>
+                    <div className="price">₦{item.price.toLocaleString()}</div>{item.options&&<div className="cart-options">{Object.entries(item.options).map(([name,value])=><span key={name}>{name}: {value}</span>)}</div>}
                     <div className="qty">
                       <button
-                        onClick={() => value.change(item.productId, -1)}
+                        onClick={() => value.change(getCartItemKey(item), -1)}
                         aria-label={"Decrease quantity of " + item.name}
                       >
                         <Minus size={13} />
                       </button>
                       <span aria-label={"Quantity " + item.quantity}>{item.quantity}</span>
                       <button
-                        onClick={() => value.change(item.productId, 1)}
+                        onClick={() => value.change(getCartItemKey(item), 1)}
                         aria-label={"Increase quantity of " + item.name}
                       >
                         <Plus size={13} />
@@ -165,7 +166,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
                   <button
                     className="icon-btn"
                     style={{ width: 34, height: 34 }}
-                    onClick={() => value.remove(item.productId)}
+                    onClick={() => value.remove(getCartItemKey(item))}
                     aria-label={"Remove " + item.name + " from shopping bag"}
                   >
                     <X size={15} />
@@ -222,7 +223,7 @@ export function CheckoutForm() {
         const response = await fetch("/api/cart/validate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ items: items.map((item) => ({ id: item.productId, name: item.name })) }),
+          body: JSON.stringify({ items: items.map((item) => ({ id: item.productId, name: item.name, variantId: item.variantId, options: item.options })) }),
         });
 
         const data = await response.json();
@@ -232,16 +233,13 @@ export function CheckoutForm() {
           throw new Error(data.error || "We couldn't refresh your bag.");
         }
 
-        if (Array.isArray(data.replacements) && data.replacements.length) {
-          syncItems(data.replacements);
+        if(Array.isArray(data.updates)&&data.updates.length){
+          syncItems(data.updates);
           setNotice("We refreshed your bag with the latest product information.");
         }
-
-        const unavailableIds = [
-          ...(Array.isArray(data.missingIds) ? data.missingIds : []),
-          ...(Array.isArray(data.unavailable)
-            ? data.unavailable.map((item: { id: string }) => item.id)
-            : []),
+        const unavailableIds=[
+          ...(Array.isArray(data.missingIds)?data.missingIds:[]),
+          ...(Array.isArray(data.unavailable)?data.unavailable.map((item:{id:string;variantId?:string;key?:string})=>item.key||getCartItemKey({productId:item.id,variantId:item.variantId})):[])
         ];
 
         const uniqueIds = [...new Set(unavailableIds)];
@@ -299,6 +297,8 @@ export function CheckoutForm() {
             name: item.name,
             quantity: item.quantity,
             price: item.price,
+            variantId: item.variantId,
+            options: item.options,
           })),
         }),
       });
@@ -321,6 +321,7 @@ export function CheckoutForm() {
             item.quantity +
             " × " +
             item.name +
+            (item.options ? " (" + Object.entries(item.options).map(([name,value]) => name + ": " + value).join(", ") + ")" : "") +
             " — ₦" +
             (Number(item.price) * item.quantity).toLocaleString()
         ),
