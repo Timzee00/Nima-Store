@@ -113,3 +113,68 @@ export async function getRecentOrders(options:{search?:string;status?:string;pag
     total:Number(countRows[0]?.count??0),page,pageSize
   };
 }
+
+export async function getHomepageProducts(limit=12){
+  const safeLimit=Math.min(24,Math.max(4,Math.floor(limit)||12));
+  const rows=await sql.query(
+    "SELECT id,name,slug,category,description,price,sale_price,stock,images,featured,active FROM products WHERE active=true ORDER BY CASE WHEN stock>0 THEN 0 ELSE 1 END, featured DESC, updated_at DESC, created_at DESC, id DESC LIMIT $1",
+    [safeLimit]
+  );
+  return rows.map(mapProduct);
+}
+
+export async function getPopularCategories(limit=8){
+  const safeLimit=Math.min(16,Math.max(4,Math.floor(limit)||8));
+  const rows=await sql.query(
+    "SELECT category,COUNT(*)::int count FROM products WHERE active=true GROUP BY category ORDER BY count DESC,category ASC LIMIT $1",
+    [safeLimit]
+  );
+  return rows.map((r:any)=>String(r.category));
+}
+
+export async function getStoreProducts(options:{search?:string;category?:string;page?:number;pageSize?:number}={}){
+  const search=options.search?.trim()??"";
+  const category=options.category?.trim()??"";
+  const page=Math.max(1,Math.floor(options.page??1));
+  const pageSize=Math.min(48,Math.max(12,Math.floor(options.pageSize??24)));
+  const like="%"+search+"%";
+  const [countRows,rows]=await Promise.all([
+    sql.query(
+      "SELECT COUNT(*)::int count FROM products WHERE active=true AND ($1='' OR category=$1) AND ($2='' OR name ILIKE $3 OR category ILIKE $3)",
+      [category,search,like]
+    ),
+    sql.query(
+      "SELECT id,name,slug,category,description,price,sale_price,stock,images,featured,active FROM products WHERE active=true AND ($1='' OR category=$1) AND ($2='' OR name ILIKE $3 OR category ILIKE $3) ORDER BY CASE WHEN stock>0 THEN 0 ELSE 1 END, featured DESC, created_at DESC, id DESC LIMIT $4 OFFSET $5",
+      [category,search,like,pageSize,(page-1)*pageSize]
+    )
+  ]);
+  return {
+    products:rows.map(mapProduct),
+    total:Number(countRows[0]?.count??0),
+    page,
+    pageSize,
+    category,
+    search
+  };
+}
+
+export async function getCategoryMergeSuggestions(){
+  const rows=await sql.query(
+    "SELECT category,COUNT(*)::int count FROM products WHERE active=true GROUP BY category ORDER BY category ASC",
+    []
+  );
+  const groups=new Map<string,{labels:string[];products:number}>();
+  for(const row of rows){
+    const label=String(row.category).trim();
+    const key=label.toLowerCase().replace(/[^a-z0-9]+/g,"");
+    if(!key)continue;
+    const existing=groups.get(key)||{labels:[],products:0};
+    existing.labels.push(label);
+    existing.products+=Number(row.count||0);
+    groups.set(key,existing);
+  }
+  return [...groups.values()]
+    .filter(group=>group.labels.length>1)
+    .sort((a,b)=>b.products-a.products||a.labels[0].localeCompare(b.labels[0]))
+    .slice(0,6);
+}

@@ -469,3 +469,68 @@ html[data-theme="dark"] .admin-sidebar-nav a:hover{background:rgba(244,241,235,.
  .admin-top-actions .theme-toggle,.admin-top-actions .icon-btn{width:40px;height:40px}
  .admin-heading h1{font-size:50px}
 }
+
+/* Homepage curation + catalogue scaling */
+.home-highlights{padding-top:70px;padding-bottom:72px}
+.home-highlight-head{display:flex;justify-content:space-between;align-items:end;gap:24px;margin-bottom:24px}
+.home-highlight-head h2{margin:8px 0 10px;font-size:clamp(36px,5vw,62px);letter-spacing:-.06em;line-height:.94;max-width:720px}
+.home-highlight-head p{margin:0;color:var(--muted);font-size:13px;line-height:1.6}
+.home-highlight-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.home-carousel{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;padding:4px 2px 12px}
+.home-carousel::-webkit-scrollbar{display:none}
+.home-carousel-card{flex:0 0 clamp(245px,28vw,320px);scroll-snap-align:start;background:var(--card);border:1px solid rgba(23,21,19,.08);border-radius:22px;overflow:hidden}
+.home-carousel-image{display:block;position:relative;aspect-ratio:4/5;background:#e9e4dc;overflow:hidden}
+.home-carousel-image img{transition:transform .45s ease}
+.home-carousel-card:hover .home-carousel-image img{transform:scale(1.035)}
+.home-carousel-info{padding:14px 15px 17px}
+.home-carousel-row{display:flex;justify-content:space-between;align-items:end;gap:12px}
+.home-carousel-row h3{margin:0 0 7px;font-size:17px;line-height:1.2;letter-spacing:-.02em}
+.home-carousel-row strong{font-size:15px}
+.home-category-strip{display:grid;gap:10px;margin-top:28px}
+.home-category-links{display:flex;gap:8px;overflow:auto;padding:2px 2px 4px;scrollbar-width:none}
+.home-category-links::-webkit-scrollbar{display:none}
+.story-band{display:grid;grid-template-columns:1.05fr .95fr;gap:28px;align-items:end;padding:38px 42px;background:var(--card)}
+.story-band h3{margin:8px 0 0;font-size:clamp(36px,5vw,64px);letter-spacing:-.06em;line-height:.92}
+.story-band p{margin:0 0 18px;color:var(--muted);line-height:1.65;max-width:500px}
+.storefront-section{padding-top:78px}
+.storefront-count{margin:9px 0 0;color:var(--muted);font-size:12px}
+.searchbar{display:flex;align-items:center}
+.searchbar .search-submit{border:1px solid var(--ink);border-radius:999px;padding:10px 14px;background:var(--ink);color:#fff;font-weight:800;font-size:12px;margin-left:7px}
+.searchbar input{min-width:0}
+.store-pagination{display:flex;justify-content:space-between;align-items:center;gap:18px;margin-top:30px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:12px}
+.store-pagination>div{display:flex;gap:8px}
+.disabled-link{opacity:.45;pointer-events:none}
+.admin-suggestions{margin-top:16px;padding:20px}
+.admin-suggestion-head{display:flex;justify-content:space-between;align-items:end;gap:18px}
+.admin-suggestion-head h2{margin:5px 0}
+.admin-suggestion-head p{margin:0;color:var(--muted);font-size:12px;line-height:1.55;max-width:720px}
+.admin-suggestion-list{display:grid;gap:0;margin-top:15px;border-top:1px solid var(--line)}
+.admin-suggestion-row{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:13px 0;border-bottom:1px solid var(--line)}
+.admin-suggestion-row>div{display:grid;gap:4px;min-width:0}
+.admin-suggestion-row strong{overflow-wrap:anywhere;font-size:13px}
+.admin-suggestion-row span{color:var(--muted);font-size:11px}
+@media(max-width:680px){
+ .home-highlights{padding-top:48px;padding-bottom:50px}
+ .home-highlight-head{display:grid;align-items:start}
+ .home-highlight-controls{width:100%}
+ .home-highlight-controls .btn.secondary{margin-left:auto}
+ .home-carousel-card{flex-basis:76vw}
+ .story-band{grid-template-columns:1fr;padding:28px}
+ .searchbar{width:100%;gap:7px}
+ .searchbar input{border-radius:14px;padding-left:40px}
+ .searchbar .search-submit{margin-left:0}
+ .store-pagination{display:grid;gap:10px}
+ .store-pagination>div{display:grid;grid-template-columns:1fr 1fr}
+ .store-pagination .btn{width:100%}
+ .admin-suggestion-head{display:grid;align-items:start}
+ .admin-suggestion-row{align-items:start}
+ .admin-suggestion-row .pill{flex:0 0 auto}
+}
+@media(max-width:900px){
+ .home-carousel-card{flex-basis:clamp(245px,42vw,310px)}
+}
+
+/* Keep storefront search controls inside their grid at every viewport. */
+.searchbar input{flex:1;width:auto;min-width:0}
+.home-carousel-row>div{min-width:0}
+.home-carousel-row h3{overflow-wrap:anywhere}
