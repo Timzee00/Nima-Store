@@ -68,7 +68,7 @@ export async function POST(req:Request){
   const[result]=await sql.transaction([
    sql.query(
     "INSERT INTO products(name,slug,category,description,price,sale_price,stock,images,featured,active) "+
-    "VALUES($1,$2,$3,$4,CASE WHEN jsonb_array_length($8::jsonb)>0 THEN (SELECT MIN((v->>'price')::numeric) FROM jsonb_array_elements($8::jsonb) v) ELSE $5 END,CASE WHEN jsonb_array_length($8::jsonb)>0 THEN NULL ELSE $6 END,CASE WHEN jsonb_array_length($8::jsonb)>0 THEN (SELECT COALESCE(SUM((v->>'stock')::int),0) FROM jsonb_array_elements($8::jsonb) v) ELSE $7 END,$9::jsonb,$10,true) "+
+    "VALUES($1,$2,$3,$4,CASE WHEN jsonb_array_length($8::jsonb)>0 THEN (SELECT MIN((v->>'price')::numeric) FROM jsonb_array_elements($8::jsonb) v) ELSE $5 END,CASE WHEN jsonb_array_length($8::jsonb)>0 THEN NULL::numeric ELSE $6::numeric END,CASE WHEN jsonb_array_length($8::jsonb)>0 THEN (SELECT COALESCE(SUM((v->>'stock')::int),0) FROM jsonb_array_elements($8::jsonb) v) ELSE $7 END,$9::jsonb,$10,true) "+
     "RETURNING id,name,slug,category,description,price,sale_price,stock,images,featured,active",
     [x.name,slug,x.category,x.description,x.price,sale,x.stock,payload,JSON.stringify(images),x.featured]
    ),
@@ -90,7 +90,7 @@ export async function PUT(req:Request){
   await ensureProductVariantsTable();
   const[result]=await sql.transaction([
    sql.query(
-    "UPDATE products SET name=$1,category=$2,description=$3,price=CASE WHEN jsonb_array_length($8::jsonb)>0 THEN (SELECT MIN((v->>'price')::numeric) FROM jsonb_array_elements($8::jsonb) v) ELSE $4 END,sale_price=CASE WHEN jsonb_array_length($8::jsonb)>0 THEN NULL ELSE $5 END,stock=CASE WHEN jsonb_array_length($8::jsonb)>0 THEN (SELECT COALESCE(SUM((v->>'stock')::int),0) FROM jsonb_array_elements($8::jsonb) v) ELSE $6 END,featured=$7,images=CASE WHEN $9='' THEN images ELSE $9::jsonb END,updated_at=now() WHERE id=$10 RETURNING id,name,slug,category,description,price,sale_price,stock,images,featured,active",
+    "UPDATE products SET name=$1,category=$2,description=$3,price=CASE WHEN jsonb_array_length($8::jsonb)>0 THEN (SELECT MIN((v->>'price')::numeric) FROM jsonb_array_elements($8::jsonb) v) ELSE $4 END,sale_price=CASE WHEN jsonb_array_length($8::jsonb)>0 THEN NULL::numeric ELSE $5::numeric END,stock=CASE WHEN jsonb_array_length($8::jsonb)>0 THEN (SELECT COALESCE(SUM((v->>'stock')::int),0) FROM jsonb_array_elements($8::jsonb) v) ELSE $6 END,featured=$7,images=CASE WHEN $9='' THEN images ELSE $9::jsonb END,updated_at=now() WHERE id=$10 RETURNING id,name,slug,category,description,price,sale_price,stock,images,featured,active",
     [x.name,x.category,x.description,x.price,sale,x.stock,x.featured,payload,images,x.id]
    ),
    sql.query("DELETE FROM product_variants WHERE product_id=$1",[x.id]),
