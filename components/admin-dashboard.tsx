@@ -1,5 +1,6 @@
 "use client";
 import Image from"next/image";
+import{upload}from"@vercel/blob/client";
 import{AlertTriangle,ChevronLeft,ChevronRight,ImagePlus,LogOut,PackageSearch,PenLine,Plus,RefreshCw,Search,Trash2,X}from"lucide-react";
 import{useEffect,useState}from"react";
 import{ThemeToggle}from"./theme-toggle";
@@ -260,6 +261,7 @@ function ProductModal({existing,close,onSaved}:{existing?:Product;close:()=>void
  const[variants,setVariants]=useState<VariantDraft[]>((existing?.variants||[]).map(v=>({id:v.id,options:v.options,price:Number(v.price),stock:v.stock,sku:v.sku||""})));
  const[variantsEnabled,setVariantsEnabled]=useState(!!(existing?.variants||[]).length);
  const[busy,setBusy]=useState(false),[error,setError]=useState("");
+ const[uploadProgress,setUploadProgress]=useState<{current:number;total:number;percentage:number}|null>(null);
  function chooseFiles(list:FileList|null){
   if(!list)return;
   const picked=Array.from(list),valid=picked.filter(file=>["image/jpeg","image/png","image/webp"].includes(file.type)&&file.size<=4*1024*1024);
@@ -282,17 +284,25 @@ function ProductModal({existing,close,onSaved}:{existing?:Product;close:()=>void
   try{
    let allImages=[...images];
    if(files.length){
-    const data=new FormData();files.forEach(file=>data.append("files",file));
-    const response=await fetch("/api/admin/upload",{method:"POST",body:data}),upload=await response.json();
-    if(!response.ok)throw new Error(upload.error||"Image upload failed.");
-    allImages=[...allImages,...(Array.isArray(upload.urls)?upload.urls:[upload.url]).filter(Boolean)];
+    for(let index=0;index<files.length;index++){
+     const file=files[index];
+     const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,"-")||"product-image";
+     setUploadProgress({current:index+1,total:files.length,percentage:0});
+     const blob=await upload("nima/products/"+Date.now()+"-"+safe,file,{
+      access:"public",
+      handleUploadUrl:"/api/admin/upload",
+      onUploadProgress:({percentage})=>setUploadProgress({current:index+1,total:files.length,percentage:Math.max(0,Math.min(100,Math.round(percentage)))})
+     });
+     allImages.push(blob.url);
+    }
+    setUploadProgress(null);
    }
    const payload={name,category,description,price,salePrice:form.salePrice===""?"":sale,stock,featured:form.featured,images:allImages,variants:variantsEnabled?variants:[]};
    const response=await fetch("/api/admin/products",{method:existing?"PUT":"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(existing?{...payload,id:existing.id}:payload)});
    const saved=await response.json();
    if(!response.ok)throw new Error(saved.error||"Could not save product.");
    onSaved(saved);
-  }catch(cause){setError(cause instanceof Error?cause.message:"Could not save product.");}finally{setBusy(false);}
+  }catch(cause){setError(cause instanceof Error?cause.message:"Could not save product.");}finally{setUploadProgress(null);setBusy(false);}
  }
  return <div className="admin-modal-overlay" onMouseDown={close}><div className="admin-modal-card product-modal-card" role="dialog" aria-modal="true" aria-label={existing?"Edit product":"Add product"} onMouseDown={event=>event.stopPropagation()}>
   <button className="icon-btn" onClick={close} aria-label="Close"><X size={17}/></button>
@@ -304,13 +314,14 @@ function ProductModal({existing,close,onSaved}:{existing?:Product;close:()=>void
    <div className="field"><label>Price (₦)</label><input required type="number" min="0" value={form.price} onChange={event=>setForm({...form,price:event.target.value})}/></div>
    <div className="field"><label>Sale price (₦)</label><input type="number" min="0" value={form.salePrice} onChange={event=>setForm({...form,salePrice:event.target.value})}/></div>
    <div className="field"><label>Stock {variantsEnabled&&<span className="muted-inline">calculated from options</span>}</label><input required type="number" min="0" value={form.stock} disabled={variantsEnabled} onChange={event=>setForm({...form,stock:event.target.value})}/></div>
-   <div className="field full"><label>Product images</label><input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={event=>chooseFiles(event.target.files)}/><span className="helper-text">Up to 6 JPG, PNG or WebP images. The first image is the main storefront image.</span></div>
+   <div className="field full"><label>Product images</label><input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={busy} onChange={event=>chooseFiles(event.target.files)}/><span className="helper-text">Up to 6 JPG, PNG or WebP images, 4 MB each. Images upload directly and the first image is the main storefront image.</span></div>
    {(images.length>0||files.length>0)&&<div className="field full"><div className="admin-image-grid">{images.map((image,index)=><div className="admin-image-item" key={image+index}><Image src={image} alt={"Product image "+(index+1)} fill sizes="110px" unoptimized style={{objectFit:"cover"}}/><button type="button" className="admin-image-remove" onClick={()=>removeImage(index)} aria-label={"Remove image "+(index+1)}><X size={13}/></button>{index===0&&<span className="admin-image-label">Main</span>}</div>)}{files.map((file,index)=><div className="admin-image-item file-preview" key={file.name+index}><div><ImagePlus size={22}/><span>{file.name}</span></div><button type="button" className="admin-image-remove" onClick={()=>removeFile(index)} aria-label={"Remove selected image "+(index+1)}><X size={13}/></button>{images.length===0&&index===0&&<span className="admin-image-label">Main</span>}</div>)}</div></div>}
    <div className="field full"><label>Image URLs (optional)</label><textarea rows={3} placeholder="Paste one image URL per line" value={images.join("\n")} onChange={event=>setImages(event.target.value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).slice(0,6-files.length))}/></div>
    <div className="field full"><ProductVariantsEditor enabled={variantsEnabled} onEnabledChange={setVariantsEnabled} value={variants} onChange={setVariants} basePrice={Number(form.price)||0}/></div>
+   {uploadProgress&&<div className="field full"><div className="upload-progress-card" role="status" aria-live="polite"><div className="upload-progress-head"><span>Uploading image {uploadProgress.current} of {uploadProgress.total}</span><strong>{uploadProgress.percentage}%</strong></div><div className="upload-progress-track" aria-hidden="true"><span style={{width:uploadProgress.percentage+"%"}}/></div><small>Keep this page open while the image uploads.</small></div></div>}
    {error&&<div className="field full"><div className="site-notice" role="alert"><div><strong>NIMA.</strong><span>{error}</span></div><button type="button" onClick={()=>setError("")} aria-label="Dismiss error"><X size={15}/></button></div></div>}
    <label className="full" style={{display:"flex",alignItems:"center",gap:8,fontSize:13}}><input type="checkbox" checked={form.featured} onChange={event=>setForm({...form,featured:event.target.checked})}/> Feature this product</label>
-   <div className="full product-modal-actions"><button type="button" className="btn secondary" onClick={close}>Cancel</button><button className="btn" disabled={busy}>{busy?"Saving...":existing?"Save changes":"Add product"}</button></div>
+   <div className="full product-modal-actions"><button type="button" className="btn secondary" onClick={close} disabled={busy}>Cancel</button><button className="btn" disabled={busy}>{uploadProgress?"Uploading "+uploadProgress.percentage+"%":busy?"Saving...":existing?"Save changes":"Add product"}</button></div>
   </form>
  </div></div>;
 }
