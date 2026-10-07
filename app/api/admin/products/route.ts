@@ -4,6 +4,7 @@ import{getAdminSession}from"@/lib/auth";
 import{sql}from"@/lib/db";
 import{ensureProductVariantsTable}from"@/lib/product-variants";
 import{getAdminProducts}from"@/lib/store";
+import{apiError}from"@/lib/api-response";
 
 const imagesSchema=z.array(z.string().url("Each product image must be a valid URL.")).max(6).default([]);
 const moneySchema=z.union([z.literal(""),z.coerce.number().finite().nonnegative()]);
@@ -29,7 +30,7 @@ const edit=base.extend({id:z.string().uuid()});
 
 function responseError(error:any){
  const issue=error.issues?.[0];
- return NextResponse.json({error:issue?.message||"Check the product fields.",field:issue?.path?.join(".")||null},{status:400});
+ return apiError("PRODUCT_VALIDATION_FAILED",issue?.message||"Check the product fields.",400,{field:issue?.path?.join(".")||null});
 }
 function slugify(value:string){return value.toLowerCase().trim().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"")}
 function normalizeVariants(value:any[]){
@@ -50,7 +51,7 @@ function normalizeVariants(value:any[]){
 function variantPayload(variants:any[]){return JSON.stringify(variants.map(v=>({optionKey:Object.keys(v.options).sort().map(name=>name.toLowerCase()+"="+v.options[name].toLowerCase()).join("|"),options:v.options,price:v.price,stock:v.stock,sku:v.sku})))}
 
 export async function GET(req:Request){
- if(!await getAdminSession())return NextResponse.json({error:"Unauthorized"},{status:401});
+ if(!await getAdminSession())return apiError("SESSION_EXPIRED","Your admin session has expired. Sign in again.",401);
  const q=new URL(req.url).searchParams;
  const page=Math.max(1,Number(q.get("page")||"1")||1);
  const limit=Math.min(50,Math.max(1,Number(q.get("limit")||"24")||24));
@@ -58,11 +59,11 @@ export async function GET(req:Request){
 }
 
 export async function POST(req:Request){
- if(!await getAdminSession())return NextResponse.json({error:"Unauthorized"},{status:401});
+ if(!await getAdminSession())return apiError("SESSION_EXPIRED","Your admin session has expired. Sign in again.",401);
  try{
   const parsed=base.safeParse(await req.json());if(!parsed.success)return responseError(parsed.error);
   const x=parsed.data,variants=normalizeVariants(x.variants),images=x.images.length?x.images:x.image?[x.image]:[];
-  if(!images.length)return NextResponse.json({error:"Add at least one product image.",field:"images"},{status:400});
+  if(!images.length)return apiError("PRODUCT_IMAGE_REQUIRED","Add at least one product image.",400,{field:"images"});
   await ensureProductVariantsTable();
   const slug=slugify(x.name)+"-"+Date.now().toString(36),payload=variantPayload(variants),sale=x.salePrice===""?null:x.salePrice;
   const[result]=await sql.transaction([
@@ -79,11 +80,11 @@ export async function POST(req:Request){
    )
   ]);
   return NextResponse.json(result[0]);
- }catch(error){console.error("Product create failed",error);return NextResponse.json({error:error instanceof Error?error.message:"Could not create product."},{status:500})}
+ }catch(error){console.error("Product create failed",error);return apiError("PRODUCT_CREATE_FAILED","We could not add the product right now. Please try again.",500,{retryable:true})}
 }
 
 export async function PUT(req:Request){
- if(!await getAdminSession())return NextResponse.json({error:"Unauthorized"},{status:401});
+ if(!await getAdminSession())return apiError("SESSION_EXPIRED","Your admin session has expired. Sign in again.",401);
  try{
   const parsed=edit.safeParse(await req.json());if(!parsed.success)return responseError(parsed.error);
   const x=parsed.data,variants=normalizeVariants(x.variants),payload=variantPayload(variants),images=Array.isArray(x.images)?JSON.stringify(x.images):x.image?JSON.stringify([x.image]):"",sale=x.salePrice===""?null:x.salePrice;
@@ -96,14 +97,14 @@ export async function PUT(req:Request){
    sql.query("DELETE FROM product_variants WHERE product_id=$1",[x.id]),
    sql.query("INSERT INTO product_variants(product_id,option_key,options,price,stock,sku) SELECT $1,v.option_key,v.options,v.price,v.stock,v.sku FROM jsonb_to_recordset($2::jsonb) v(option_key text,options jsonb,price numeric,stock int,sku text)",[x.id,payload])
   ]);
-  if(!result[0])return NextResponse.json({error:"Product not found."},{status:404});
+  if(!result[0])return apiError("PRODUCT_NOT_FOUND","Product not found.",404);
   return NextResponse.json(result[0]);
- }catch(error){console.error("Product update failed",error);return NextResponse.json({error:error instanceof Error?error.message:"Could not update product."},{status:500})}
+ }catch(error){console.error("Product update failed",error);return apiError("PRODUCT_UPDATE_FAILED","We could not update the product right now. Please try again.",500,{retryable:true})}
 }
 
 export async function DELETE(req:Request){
- if(!await getAdminSession())return NextResponse.json({error:"Unauthorized"},{status:401});
- const id=new URL(req.url).searchParams.get("id");if(!id)return NextResponse.json({error:"Missing id"},{status:400});
+ if(!await getAdminSession())return apiError("SESSION_EXPIRED","Your admin session has expired. Sign in again.",401);
+ const id=new URL(req.url).searchParams.get("id");if(!id)return apiError("PRODUCT_ID_REQUIRED","Choose a product before trying to archive it.",400);
  await sql.query("UPDATE products SET active=false,updated_at=now() WHERE id=$1",[id]);
  return NextResponse.json({ok:true});
 }

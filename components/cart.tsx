@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Minus, Plus, ShoppingBag, X, ArrowRight } from "lucide-react";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import{requestJson,userMessage}from"@/lib/client-request";
 
 export type CartItem = {
   productId: string;
@@ -220,18 +221,13 @@ export function CheckoutForm() {
       setChecking(true);
 
       try {
-        const response = await fetch("/api/cart/validate", {
+        const data = await requestJson<any>("/api/cart/validate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ items: items.map((item) => ({ id: item.productId, name: item.name, variantId: item.variantId, options: item.options })) }),
-        });
-
-        const data = await response.json();
+        },{timeoutMs:15000,fallback:"We couldn't refresh your bag."});
 
         if (cancelled) return;
-        if (!response.ok) {
-          throw new Error(data.error || "We couldn't refresh your bag.");
-        }
 
         if(Array.isArray(data.updates)&&data.updates.length){
           syncItems(data.updates);
@@ -254,7 +250,7 @@ export function CheckoutForm() {
         }
       } catch (error) {
         if (!cancelled) {
-          setNotice(error instanceof Error ? error.message : "We couldn't refresh your bag.");
+          setNotice(userMessage(error,"We couldn't refresh your bag. Please try again."));
         }
       } finally {
         if (!cancelled) setChecking(false);
@@ -284,7 +280,7 @@ export function CheckoutForm() {
     setNotice("");
 
     try {
-      const response = await fetch("/api/orders", {
+      const data = await requestJson<any>("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -301,13 +297,7 @@ export function CheckoutForm() {
             options: item.options,
           })),
         }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "We couldn't place your order.");
-      }
+      },{timeoutMs:20000,fallback:"We couldn't place your order."});
 
       const verifiedItems = Array.isArray(data.items) ? data.items : [];
       const verifiedSubtotal = Number(data.subtotal ?? subtotal);
@@ -338,11 +328,7 @@ export function CheckoutForm() {
       window.location.href =
         "https://wa.me/" + number + "?text=" + encodeURIComponent(lines.join("\n"));
     } catch (error) {
-      setNotice(
-        error instanceof Error
-          ? error.message
-          : "We couldn't place your order. Please try again."
-      );
+      setNotice(userMessage(error,"We couldn't place your order. Please try again."));
     } finally {
       setBusy(false);
     }

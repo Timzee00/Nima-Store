@@ -7,6 +7,7 @@ import{ThemeToggle}from"./theme-toggle";
 import{ProductVariantsEditor,VariantDraft}from"./product-variants-editor";
 import{AdminNavigation}from"./admin-navigation";
 import{Order,Product}from"@/lib/store";
+import{requestJson,userMessage}from"@/lib/client-request";
 import{OrderReceiptTools}from"./order-receipt-tools";
 
 const money=(n:number|string)=>"₦"+Number(n).toLocaleString();
@@ -27,7 +28,7 @@ export function AdminDashboard({initialProducts,initialProductTotal,initialOrder
    const d=await r.json();
    if(!r.ok)throw new Error(d.error||"Could not load products.");
    setProducts(Array.isArray(d.products)?d.products:[]);setProductTotal(Number(d.total||0));
-  }catch(e){if((e as any)?.name!=="AbortError")flash(e instanceof Error?e.message:"Could not load products.");}
+  }catch(e){if((e as any)?.name!=="AbortError")flash(userMessage(e,"Could not load products."));}
   finally{if(!signal?.aborted)setProductBusy(false);}
  }
 
@@ -40,7 +41,7 @@ export function AdminDashboard({initialProducts,initialProductTotal,initialOrder
    if(!r.ok)throw new Error(d.error||"Could not load orders.");
    setOrders(Array.isArray(d.orders)?d.orders:[]);setOrderTotal(Number(d.total||0));
    setSelectedOrder(current=>current?d.orders.find((x:Order)=>x.id===current.id)||current:null);
-  }catch(e){if((e as any)?.name!=="AbortError")flash(e instanceof Error?e.message:"Could not load orders.");}
+  }catch(e){if((e as any)?.name!=="AbortError")flash(userMessage(e,"Could not load orders."));}
   finally{if(!signal?.aborted)setOrderBusy(false);}
  }
 
@@ -95,7 +96,7 @@ export function AdminDashboard({initialProducts,initialProductTotal,initialOrder
    const d=await r.json();
    if(!r.ok)throw new Error(d.error||"Could not load low-stock products.");
    setLowProducts(Array.isArray(d.products)?d.products:[]);setLowTotal(Number(d.total||0));
-  }catch(e){flash(e instanceof Error?e.message:"Could not load low-stock products.");}
+  }catch(e){flash(userMessage(e,"Could not load low-stock products."));}
   finally{setLowBusy(false);}
  }
 
@@ -261,7 +262,7 @@ function ProductModal({existing,close,onSaved}:{existing?:Product;close:()=>void
  const[variants,setVariants]=useState<VariantDraft[]>((existing?.variants||[]).map(v=>({id:v.id,options:v.options,price:Number(v.price),stock:v.stock,sku:v.sku||""})));
  const[variantsEnabled,setVariantsEnabled]=useState(!!(existing?.variants||[]).length);
  const[busy,setBusy]=useState(false),[error,setError]=useState("");
- const[uploadProgress,setUploadProgress]=useState<{current:number;total:number;percentage:number}|null>(null);
+ const[uploadProgress,setUploadProgress]=useState<{current:number;total:number;percentage:number;phase:"checking"|"uploading"}|null>(null);
  function chooseFiles(list:FileList|null){
   if(!list)return;
   const picked=Array.from(list),valid=picked.filter(file=>["image/jpeg","image/png","image/webp"].includes(file.type)&&file.size<=4*1024*1024);
@@ -274,35 +275,54 @@ function ProductModal({existing,close,onSaved}:{existing?:Product;close:()=>void
  async function submit(event:React.FormEvent){
   event.preventDefault();setError("");
   const name=form.name.trim(),category=form.category.trim(),description=form.description.trim(),price=Number(form.price),stock=Number(form.stock),sale=form.salePrice===""?null:Number(form.salePrice);
-  if(name.length<2||category.length<2||description.length<5){setError("Complete the product name, category and description.");return}
-  if(!Number.isFinite(price)||price<0){setError("Enter a valid product price.");return}
-  if(form.salePrice!==""&&(!Number.isFinite(sale)||Number(sale)<0)){setError("Enter a valid sale price.");return}
-  if(!Number.isInteger(stock)||stock<0){setError("Enter a valid whole-number stock quantity.");return}
-  if(images.length+files.length<1){setError("Add at least one product image.");return}
-  if(variantsEnabled&&variants.length===0){setError("Generate the option combinations before saving.");return}
+  if(name.length<2){setError("Product name must be at least 2 characters.");return}
+  if(category.length<2){setError("Category must be at least 2 characters.");return}
+  if(description.length<5){setError("Description must be at least 5 characters.");return}
+  if(!Number.isFinite(price)||price<0){setError("Price must be a valid amount of ₦0 or more.");return}
+  if(form.salePrice!==""&&(!Number.isFinite(sale)||Number(sale)<0)){setError("Sale price must be a valid amount of ₦0 or more.");return}
+  if(form.salePrice!==""&&Number(sale)>price){setError("Sale price cannot be higher than the regular price.");return}
+  if(!Number.isInteger(stock)||stock<0){setError("Stock must be a whole number of 0 or more.");return}
+  if(images.length+files.length<1){setError("Add at least one product image before saving.");return}
+  if(files.some(file=>file.size===0)){setError("One of the selected images is empty. Remove it and choose the image again.");return}
+  if(variantsEnabled&&variants.length===0){setError("Generate the option combinations before saving the product.");return}
+  if(variantsEnabled&&variants.some(v=>!Number.isFinite(Number(v.price))||Number(v.price)<0||!Number.isInteger(Number(v.stock))||Number(v.stock)<0)){setError("Every option combination needs a valid price and whole-number stock quantity.");return}
   setBusy(true);
   try{
    let allImages=[...images];
    if(files.length){
+    setUploadProgress({current:0,total:files.length,percentage:0,phase:"checking"});
+    await requestJson<{ok:boolean}>("/api/admin/upload",{method:"GET"},{timeoutMs:12000,fallback:"Image storage could not be reached."});
     for(let index=0;index<files.length;index++){
      const file=files[index];
      const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,"-")||"product-image";
-     setUploadProgress({current:index+1,total:files.length,percentage:0});
-     const blob=await upload("nima/products/"+Date.now()+"-"+safe,file,{
-      access:"public",
-      handleUploadUrl:"/api/admin/upload",
-      onUploadProgress:({percentage})=>setUploadProgress({current:index+1,total:files.length,percentage:Math.max(0,Math.min(100,Math.round(percentage)))})
-     });
-     allImages.push(blob.url);
+     const controller=new AbortController();
+     let lastLoaded=0,lastMovement=Date.now(),stalled=false;
+     const stallTimer=window.setInterval(()=>{
+      if(Date.now()-lastMovement>60000){stalled=true;controller.abort()}
+     },5000);
+     try{
+      setUploadProgress({current:index+1,total:files.length,percentage:0,phase:"uploading"});
+      const blob=await upload("nima/products/"+Date.now()+"-"+safe,file,{
+       access:"public",
+       handleUploadUrl:"/api/admin/upload",
+       abortSignal:controller.signal,
+       onUploadProgress:({loaded,percentage})=>{
+        if(loaded>lastLoaded){lastLoaded=loaded;lastMovement=Date.now()}
+        setUploadProgress({current:index+1,total:files.length,percentage:Math.max(0,Math.min(100,Math.round(percentage))),phase:"uploading"})
+       }
+      });
+      allImages.push(blob.url);
+     }catch(cause){
+      if(stalled)throw new Error("Image "+(index+1)+" stopped making progress for 60 seconds. Check your connection and try again.");
+      throw cause;
+     }finally{window.clearInterval(stallTimer)}
     }
     setUploadProgress(null);
    }
    const payload={name,category,description,price,salePrice:form.salePrice===""?"":sale,stock,featured:form.featured,images:allImages,variants:variantsEnabled?variants:[]};
-   const response=await fetch("/api/admin/products",{method:existing?"PUT":"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(existing?{...payload,id:existing.id}:payload)});
-   const saved=await response.json();
-   if(!response.ok)throw new Error(saved.error||"Could not save product.");
+   const saved=await requestJson<Product>("/api/admin/products",{method:existing?"PUT":"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(existing?{...payload,id:existing.id}:payload)},{timeoutMs:20000,fallback:existing?"Could not update product.":"Could not add product."});
    onSaved(saved);
-  }catch(cause){setError(cause instanceof Error?cause.message:"Could not save product.");}finally{setUploadProgress(null);setBusy(false);}
+  }catch(cause){setError(userMessage(cause,existing?"Could not update product. Please try again.":"Could not add product. Please try again."));}finally{setUploadProgress(null);setBusy(false);}
  }
  return <div className="admin-modal-overlay" onMouseDown={close}><div className="admin-modal-card product-modal-card" role="dialog" aria-modal="true" aria-label={existing?"Edit product":"Add product"} onMouseDown={event=>event.stopPropagation()}>
   <button className="icon-btn" onClick={close} aria-label="Close"><X size={17}/></button>
@@ -318,10 +338,10 @@ function ProductModal({existing,close,onSaved}:{existing?:Product;close:()=>void
    {(images.length>0||files.length>0)&&<div className="field full"><div className="admin-image-grid">{images.map((image,index)=><div className="admin-image-item" key={image+index}><Image src={image} alt={"Product image "+(index+1)} fill sizes="110px" unoptimized style={{objectFit:"cover"}}/><button type="button" className="admin-image-remove" onClick={()=>removeImage(index)} aria-label={"Remove image "+(index+1)}><X size={13}/></button>{index===0&&<span className="admin-image-label">Main</span>}</div>)}{files.map((file,index)=><div className="admin-image-item file-preview" key={file.name+index}><div><ImagePlus size={22}/><span>{file.name}</span></div><button type="button" className="admin-image-remove" onClick={()=>removeFile(index)} aria-label={"Remove selected image "+(index+1)}><X size={13}/></button>{images.length===0&&index===0&&<span className="admin-image-label">Main</span>}</div>)}</div></div>}
    <div className="field full"><label>Image URLs (optional)</label><textarea rows={3} placeholder="Paste one image URL per line" value={images.join("\n")} onChange={event=>setImages(event.target.value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).slice(0,6-files.length))}/></div>
    <div className="field full"><ProductVariantsEditor enabled={variantsEnabled} onEnabledChange={setVariantsEnabled} value={variants} onChange={setVariants} basePrice={Number(form.price)||0}/></div>
-   {uploadProgress&&<div className="field full"><div className="upload-progress-card" role="status" aria-live="polite"><div className="upload-progress-head"><span>Uploading image {uploadProgress.current} of {uploadProgress.total}</span><strong>{uploadProgress.percentage}%</strong></div><div className="upload-progress-track" aria-hidden="true"><span style={{width:uploadProgress.percentage+"%"}}/></div><small>Keep this page open while the image uploads.</small></div></div>}
+   {uploadProgress&&<div className="field full"><div className="upload-progress-card" role="status" aria-live="polite"><div className="upload-progress-head"><span>{uploadProgress.phase==="checking"?"Preparing secure image upload…":"Uploading image "+uploadProgress.current+" of "+uploadProgress.total}</span><strong>{uploadProgress.phase==="checking"?"Checking":uploadProgress.percentage+"%"}</strong></div><div className="upload-progress-track" aria-hidden="true"><span style={{width:(uploadProgress.phase==="checking"?8:uploadProgress.percentage)+"%"}}/></div><small>{uploadProgress.phase==="checking"?"Checking your session and image storage connection.":"Keep this page open while the image uploads. If progress stops for 60 seconds, NIMA will stop and show an error instead of loading forever."}</small></div></div>}
    {error&&<div className="field full"><div className="site-notice" role="alert"><div><strong>NIMA.</strong><span>{error}</span></div><button type="button" onClick={()=>setError("")} aria-label="Dismiss error"><X size={15}/></button></div></div>}
    <label className="full" style={{display:"flex",alignItems:"center",gap:8,fontSize:13}}><input type="checkbox" checked={form.featured} onChange={event=>setForm({...form,featured:event.target.checked})}/> Feature this product</label>
-   <div className="full product-modal-actions"><button type="button" className="btn secondary" onClick={close} disabled={busy}>Cancel</button><button className="btn" disabled={busy}>{uploadProgress?"Uploading "+uploadProgress.percentage+"%":busy?"Saving...":existing?"Save changes":"Add product"}</button></div>
+   <div className="full product-modal-actions"><button type="button" className="btn secondary" onClick={close} disabled={busy}>Cancel</button><button className="btn" disabled={busy}>{uploadProgress?(uploadProgress.phase==="checking"?"Preparing upload…":"Uploading "+uploadProgress.percentage+"%"):busy?"Saving...":existing?"Save changes":"Add product"}</button></div>
   </form>
  </div></div>;
 }

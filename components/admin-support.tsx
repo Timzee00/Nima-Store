@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import{requestJson,userMessage}from"@/lib/client-request";
 
 type Ticket={
  id:string;ticket_number:string;order_id:string|null;order_number?:string|null;
@@ -13,11 +14,9 @@ export function AdminSupport({initial}:{initial:Ticket[]}){
  async function update(id:string,patch:Record<string,string>){
   setBusy(id);setMessage("");
   try{
-   const r=await fetch("/api/admin/support",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,...patch})});
-   const d=await r.json();
-   if(!r.ok)throw new Error(d.error||"Could not update ticket.");
+   const d=await requestJson<any>("/api/admin/support",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,...patch})},{timeoutMs:15000,fallback:"Could not update support ticket."});
    setTickets(cur=>cur.map(t=>t.id===id?{...t,...d}:t));
-  }catch(e){setMessage(e instanceof Error?e.message:"Could not update ticket.");}
+  }catch(e){setMessage(userMessage(e,"Could not update support ticket. Please try again."));}
   finally{setBusy("");}
  }
 
