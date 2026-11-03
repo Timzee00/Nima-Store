@@ -48,7 +48,7 @@ function normalizeVariants(value:any[]){
  if(groups.size>2)throw new Error("A product can use at most two option groups.");
  return result;
 }
-function variantPayload(variants:any[]){return JSON.stringify(variants.map(v=>({optionKey:Object.keys(v.options).sort().map(name=>name.toLowerCase()+"="+v.options[name].toLowerCase()).join("|"),options:v.options,price:v.price,stock:v.stock,sku:v.sku})))}
+function variantPayload(variants:any[]){return JSON.stringify(variants.map(v=>({option_key:Object.keys(v.options).sort().map(name=>name.toLowerCase()+"="+v.options[name].toLowerCase()).join("|"),options:v.options,price:v.price,stock:v.stock,sku:v.sku})))}
 
 export async function GET(req:Request){
  if(!await getAdminSession())return apiError("SESSION_EXPIRED","Your admin session has expired. Sign in again.",401);
