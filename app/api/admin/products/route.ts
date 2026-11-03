@@ -103,7 +103,9 @@ export async function PUT(req:Request){
 }
 
 export async function DELETE(req:Request){
- if(!await getAdminSession())return apiError("SESSION_EXPIRED","Your admin session has expired. Sign in again.",401);
+ const session=await getAdminSession();
+ if(!session)return apiError("SESSION_EXPIRED","Your admin session has expired. Sign in again.",401);
+ if(session.role!=="owner")return apiError("NOT_FOUND","Not found.",404);
  const id=new URL(req.url).searchParams.get("id");if(!id)return apiError("PRODUCT_ID_REQUIRED","Choose a product before trying to archive it.",400);
  await sql.query("UPDATE products SET active=false,updated_at=now() WHERE id=$1",[id]);
  return NextResponse.json({ok:true});

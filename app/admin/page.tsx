@@ -14,5 +14,5 @@ export default async function AdminPage(){
   getAdminStats(),
   getCategoryMergeSuggestions()
  ]);
- return <AdminDashboard initialProducts={p.products} initialProductTotal={p.total} initialOrders={o.orders} initialOrderTotal={o.total} stats={stats} categorySuggestions={suggestions}/>;
+ return <AdminDashboard initialProducts={p.products} initialProductTotal={p.total} initialOrders={o.orders} initialOrderTotal={o.total} stats={stats} categorySuggestions={suggestions} canArchive={s.role==="owner"}/>;
 }

@@ -12,7 +12,7 @@ import{OrderReceiptTools}from"./order-receipt-tools";
 
 const money=(n:number|string)=>"₦"+Number(n).toLocaleString();
 
-export function AdminDashboard({initialProducts,initialProductTotal,initialOrders,initialOrderTotal,stats,categorySuggestions}:{initialProducts:Product[];initialProductTotal:number;initialOrders:Order[];initialOrderTotal:number;stats:{products:number;orders:number;sales:number;lowStock:number};categorySuggestions:{labels:string[];products:number}[]}){
+export function AdminDashboard({initialProducts,initialProductTotal,initialOrders,initialOrderTotal,stats,categorySuggestions,canArchive}:{initialProducts:Product[];initialProductTotal:number;initialOrders:Order[];initialOrderTotal:number;stats:{products:number;orders:number;sales:number;lowStock:number};categorySuggestions:{labels:string[];products:number}[];canArchive:boolean}){
  const[products,setProducts]=useState(initialProducts),[productTotal,setProductTotal]=useState(initialProductTotal),[productPage,setProductPage]=useState(1),[productSearch,setProductSearch]=useState(""),[productBusy,setProductBusy]=useState(false);
  const[orders,setOrders]=useState(initialOrders),[orderTotal,setOrderTotal]=useState(initialOrderTotal),[orderPage,setOrderPage]=useState(1),[orderSearch,setOrderSearch]=useState(""),[orderStatus,setOrderStatus]=useState(""),[orderBusy,setOrderBusy]=useState(false);
  const[totals,setTotals]=useState(stats),[modal,setModal]=useState<Product|null|false>(false),[selectedOrder,setSelectedOrder]=useState<Order|null>(null),[lowOpen,setLowOpen]=useState(false),[lowProducts,setLowProducts]=useState<Product[]>([]),[lowPage,setLowPage]=useState(1),[lowTotal,setLowTotal]=useState(0),[lowBusy,setLowBusy]=useState(false),[toast,setToast]=useState("");
@@ -175,13 +175,13 @@ export function AdminDashboard({initialProducts,initialProductTotal,initialOrder
               >
                 <PenLine size={14} />
               </button>
-              <button
+              {canArchive&&<button
                 className="icon-btn"
                 onClick={() => remove(product.id)}
                 aria-label={"Archive " + product.name}
               >
                 <Trash2 size={14} />
-              </button>
+              </button>}
             </div>
           </td>
         </tr>
@@ -191,7 +191,7 @@ export function AdminDashboard({initialProducts,initialProductTotal,initialOrder
     </div>
 
     <div className="mobile-only-admin">
-     <div className="admin-mobile-list">{products.map(p=><article className="admin-mobile-card" key={p.id}><div className="admin-mobile-card-main"><div className="admin-list-thumb mobile-thumb">{p.images[0]&&<Image src={p.images[0]} alt="" fill sizes="62px" unoptimized style={{objectFit:"cover"}}/>}</div><div className="admin-mobile-copy"><strong>{p.name}</strong><span>{p.category} · {money(p.salePrice??p.price)}</span><span className={p.stock<=5?"stock-warning":""}>Stock: {p.stock.toLocaleString()}</span></div></div><div className="admin-mobile-actions"><button className="btn secondary" onClick={()=>setModal(p)}><PenLine size={14}/> Edit</button><button className="icon-btn" onClick={()=>remove(p.id)} aria-label={"Archive "+p.name}><Trash2 size={14}/></button></div></article>)}
+     <div className="admin-mobile-list">{products.map(p=><article className="admin-mobile-card" key={p.id}><div className="admin-mobile-card-main"><div className="admin-list-thumb mobile-thumb">{p.images[0]&&<Image src={p.images[0]} alt="" fill sizes="62px" unoptimized style={{objectFit:"cover"}}/>}</div><div className="admin-mobile-copy"><strong>{p.name}</strong><span>{p.category} · {money(p.salePrice??p.price)}</span><span className={p.stock<=5?"stock-warning":""}>Stock: {p.stock.toLocaleString()}</span></div></div><div className="admin-mobile-actions"><button className="btn secondary" onClick={()=>setModal(p)}><PenLine size={14}/> Edit</button>{canArchive&&<button className="icon-btn" onClick={()=>remove(p.id)} aria-label={"Archive "+p.name}><Trash2 size={14}/></button>}</div></article>)}
       {!products.length&&!productBusy&&<div className="admin-empty"><PackageSearch size={24}/><strong>No products found</strong><span>Try a different search.</span></div>}
      </div>
     </div>
