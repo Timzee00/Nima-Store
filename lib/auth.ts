@@ -25,7 +25,7 @@ export async function authenticateAdmin(email:string,password:string):Promise<Ad
   const settings=await ownerOverride();
   return{id:"owner",email:normalized,role:"owner",version:Number(settings?.credential_version||0)};
  }
- const rows=await sql.query("SELECT id,email,password_hash,is_active,credential_version FROM nima_staff_users WHERE email=$1 LIMIT 1",[normalized]);
+ const rows=await sql.query("SELECT id,email,password_hash,is_active,credential_version FROM nima_staff_accounts WHERE email=$1 LIMIT 1",[normalized]);
  const staff=rows[0];
  if(!staff||!staff.is_active||!await bcrypt.compare(password,String(staff.password_hash)))return null;
  return{id:String(staff.id),email:String(staff.email),role:"manager",version:Number(staff.credential_version)};
@@ -47,7 +47,7 @@ export async function getAdminSession():Promise<AdminAccount|null>{
    if(payload.version!==Number(state?.credential_version||0))return null;
    return{id:"owner",email:payload.email,role:"owner",version:payload.version};
   }
-  const rows=await sql.query("SELECT id,email,is_active,credential_version FROM nima_staff_users WHERE id=$1 LIMIT 1",[payload.sub]);
+  const rows=await sql.query("SELECT id,email,is_active,credential_version FROM nima_staff_accounts WHERE id=$1 LIMIT 1",[payload.sub]);
   const staff=rows[0];
   if(!staff||!staff.is_active||Number(staff.credential_version)!==payload.version||String(staff.email).toLowerCase()!==payload.email.toLowerCase())return null;
   return{id:String(staff.id),email:String(staff.email),role:"manager",version:Number(staff.credential_version)};

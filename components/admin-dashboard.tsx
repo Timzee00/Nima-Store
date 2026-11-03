@@ -1,7 +1,7 @@
 "use client";
 import Image from"next/image";
 import{uploadProductImage, type ProductImageUploadPhase}from"@/lib/client-product-image-upload";
-import{AlertTriangle,ChevronLeft,ChevronRight,ImagePlus,LogOut,PackageSearch,PenLine,Plus,RefreshCw,Search,Trash2,X}from"lucide-react";
+import{AlertTriangle,ChevronLeft,ChevronRight,ImagePlus,LogOut,Settings,PackageSearch,PenLine,Plus,RefreshCw,Search,Trash2,X}from"lucide-react";
 import{useEffect,useState}from"react";
 import{ThemeToggle}from"./theme-toggle";
 import{ProductVariantsEditor,VariantDraft}from"./product-variants-editor";
@@ -105,10 +105,10 @@ export function AdminDashboard({initialProducts,initialProductTotal,initialOrder
  const lowPages=Math.max(1,Math.ceil(lowTotal/lowPageSize));
 
  return <div className="admin-shell">
-  <AdminNavigation/>
+  <AdminNavigation canManageAccess={canArchive}/>
   <div className="admin-top">
    <div><strong>NIMA.</strong><span className="admin-top-sub">Control room</span></div>
-   <div className="admin-top-actions"><ThemeToggle/><button className="icon-btn admin-refresh" onClick={refresh} aria-label="Refresh dashboard"><RefreshCw size={17}/></button><button className="icon-btn admin-logout" onClick={async()=>{await fetch("/api/admin/logout",{method:"POST"});location.href="/admin/login"}} aria-label="Log out"><LogOut size={16}/></button></div>
+   <div className="admin-top-actions"><ThemeToggle/>{canArchive&&<a href="/admin/access" className="icon-btn" aria-label="Settings" title="Settings"><Settings size={17}/></a>}<button className="icon-btn admin-refresh" onClick={refresh} aria-label="Refresh dashboard"><RefreshCw size={17}/></button><button className="icon-btn admin-logout" onClick={async()=>{await fetch("/api/admin/logout",{method:"POST"});location.href="/admin/login"}} aria-label="Log out"><LogOut size={16}/></button></div>
   </div>
 
   <main className="admin-main">

@@ -7,10 +7,11 @@ import{AdminNavigation}from"@/components/admin-navigation";
 export const dynamic="force-dynamic";
 
 export default async function SupportAdmin(){
- if(!await getAdminSession())redirect("/admin/login");
+ const session=await getAdminSession();
+ if(!session)redirect("/admin/login");
  const tickets=await getSupportTickets();
  return <main className="admin-shell">
-  <AdminNavigation/>
+  <AdminNavigation canManageAccess={session.role==="owner"}/>
   <header className="admin-top">
    <div><strong>NIMA.</strong><span className="admin-top-sub">Support desk</span></div>
    <div className="admin-top-actions"><a className="btn secondary admin-top-btn" href="/admin">Back to dashboard</a></div>

@@ -97,3 +97,16 @@ CREATE INDEX IF NOT EXISTS product_variants_stock_idx ON product_variants(produc
 -- Owner and separate staff access; hashes only, no shared plaintext credentials.
 CREATE TABLE IF NOT EXISTS nima_owner_access (id smallint PRIMARY KEY DEFAULT 1 CHECK(id=1),password_hash text NOT NULL,credential_version integer NOT NULL DEFAULT 1,updated_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE IF NOT EXISTS nima_staff_users (id uuid PRIMARY KEY DEFAULT gen_random_uuid(),slot smallint NOT NULL DEFAULT 1 UNIQUE CHECK(slot=1),email varchar(254) NOT NULL UNIQUE,password_hash text NOT NULL,is_active boolean NOT NULL DEFAULT true,credential_version integer NOT NULL DEFAULT 1,created_at timestamptz NOT NULL DEFAULT now(),updated_at timestamptz NOT NULL DEFAULT now());
+
+
+-- Separate credentials for any number of staff members.
+-- The former nima_staff_users single-slot table is retained for historical compatibility.
+CREATE TABLE IF NOT EXISTS nima_staff_accounts (
+ id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+ email varchar(254) NOT NULL UNIQUE,
+ password_hash text NOT NULL,
+ is_active boolean NOT NULL DEFAULT true,
+ credential_version integer NOT NULL DEFAULT 1,
+ created_at timestamptz NOT NULL DEFAULT now(),
+ updated_at timestamptz NOT NULL DEFAULT now()
+);

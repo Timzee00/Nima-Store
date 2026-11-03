@@ -1,9 +1,9 @@
 "use client";
 import Link from "next/link";
-import{Box,ClipboardList,LayoutDashboard,MessageSquare,Menu,Store,X}from"lucide-react";
+import{Box,ClipboardList,LayoutDashboard,MessageSquare,Menu,Settings,Store,X}from"lucide-react";
 import{useEffect,useState}from"react";
 
-export function AdminNavigation(){
+export function AdminNavigation({canManageAccess=false}:{canManageAccess?:boolean}={}){
  const[open,setOpen]=useState(false);
  useEffect(()=>{
   const onKey=(event:KeyboardEvent)=>{if(event.key==="Escape")setOpen(false)};
@@ -28,6 +28,7 @@ export function AdminNavigation(){
      <Link href="/admin#orders" onClick={()=>setOpen(false)}><ClipboardList size={17}/> Orders</Link>
      <Link href="/admin#low-stock" onClick={()=>setOpen(false)}><Box size={17}/> Low stock</Link>
      <Link href="/admin/support" onClick={()=>setOpen(false)}><MessageSquare size={17}/> Support</Link>
+     {canManageAccess&&<Link href="/admin/access" onClick={()=>setOpen(false)}><Settings size={17}/> Settings</Link>}
      <div className="eyebrow admin-sidebar-rule">Store</div>
      <Link href="/" target="_blank" rel="noreferrer" onClick={()=>setOpen(false)}><Store size={17}/> View storefront</Link>
     </nav>
