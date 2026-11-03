@@ -46,11 +46,12 @@ export async function getAdminStats(){
  return {products:Number(a[0]?.count??0),orders:Number(b[0]?.count??0),sales:Number(c[0]?.total??0),lowStock:Number(d[0]?.count??0)};
 }
 
-export async function getAdminProducts(options:{search?:string;page?:number;pageSize?:number;lowStock?:boolean}={}){
- const search=options.search?.trim()??"",page=Math.max(1,Math.floor(options.page??1)),pageSize=Math.min(50,Math.max(1,Math.floor(options.pageSize??24))),lowStock=Boolean(options.lowStock),like="%"+search+"%";
+export async function getAdminProducts(options:{search?:string;page?:number;pageSize?:number;lowStock?:boolean;archived?:boolean}={}){
+ const search=options.search?.trim()??"",page=Math.max(1,Math.floor(options.page??1)),pageSize=Math.min(50,Math.max(1,Math.floor(options.pageSize??24)));
+ const archived=Boolean(options.archived),lowStock=Boolean(options.lowStock)&&!archived,active=!archived,like="%"+search+"%";
  const[countRows,rows]=await Promise.all([
-  sql.query("SELECT COUNT(*)::int count FROM products WHERE active=true AND ($1='' OR name ILIKE $2 OR category ILIKE $2 OR slug ILIKE $2) AND ($3::boolean=false OR stock<=5)",[search,like,lowStock]),
-  sql.query("SELECT id,name,slug,category,description,price,sale_price,stock,images,featured,active FROM products WHERE active=true AND ($1='' OR name ILIKE $2 OR category ILIKE $2 OR slug ILIKE $2) AND ($3::boolean=false OR stock<=5) ORDER BY CASE WHEN $3::boolean THEN stock END ASC,CASE WHEN $3::boolean THEN updated_at END DESC,CASE WHEN $3::boolean=false THEN created_at END DESC,id DESC LIMIT $4 OFFSET $5",[search,like,lowStock,pageSize,(page-1)*pageSize])
+  sql.query("SELECT COUNT(*)::int count FROM products WHERE active=$1 AND ($2='' OR name ILIKE $3 OR category ILIKE $3 OR slug ILIKE $3) AND ($4::boolean=false OR stock<=5)",[active,search,like,lowStock]),
+  sql.query("SELECT id,name,slug,category,description,price,sale_price,stock,images,featured,active FROM products WHERE active=$1 AND ($2='' OR name ILIKE $3 OR category ILIKE $3 OR slug ILIKE $3) AND ($4::boolean=false OR stock<=5) ORDER BY CASE WHEN $4::boolean THEN stock END ASC,CASE WHEN $4::boolean THEN updated_at END DESC,CASE WHEN $4::boolean=false THEN updated_at END DESC,id DESC LIMIT $5 OFFSET $6",[active,search,like,lowStock,pageSize,(page-1)*pageSize])
  ]);
  return {products:await enrichProducts(rows.map(mapProduct),true),total:Number(countRows[0]?.count??0),page,pageSize};
 }

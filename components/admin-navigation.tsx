@@ -25,6 +25,7 @@ export function AdminNavigation({canManageAccess=false}:{canManageAccess?:boolea
      <div className="eyebrow">Workspace</div>
      <Link href="/admin" onClick={()=>setOpen(false)}><LayoutDashboard size={17}/> Dashboard</Link>
      <Link href="/admin#inventory" onClick={()=>setOpen(false)}><Box size={17}/> Inventory</Link>
+     <Link href="/admin?catalog=archived#inventory" onClick={()=>setOpen(false)}><Box size={17}/> Archived products</Link>
      <Link href="/admin#orders" onClick={()=>setOpen(false)}><ClipboardList size={17}/> Orders</Link>
      <Link href="/admin#low-stock" onClick={()=>setOpen(false)}><Box size={17}/> Low stock</Link>
      <Link href="/admin/support" onClick={()=>setOpen(false)}><MessageSquare size={17}/> Support</Link>

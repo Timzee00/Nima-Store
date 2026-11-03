@@ -55,7 +55,7 @@ export async function GET(req:Request){
  const q=new URL(req.url).searchParams;
  const page=Math.max(1,Number(q.get("page")||"1")||1);
  const limit=Math.min(50,Math.max(1,Number(q.get("limit")||"24")||24));
- return NextResponse.json(await getAdminProducts({search:(q.get("search")||"").trim(),page,pageSize:limit,lowStock:q.get("lowStock")==="true"}));
+ return NextResponse.json(await getAdminProducts({search:(q.get("search")||"").trim(),page,pageSize:limit,lowStock:q.get("lowStock")==="true",archived:q.get("archived")==="true"}),{headers:{"Cache-Control":"no-store"}});
 }
 
 export async function POST(req:Request){
@@ -102,11 +102,34 @@ export async function PUT(req:Request){
  }catch(error){console.error("Product update failed",error);return apiError("PRODUCT_UPDATE_FAILED","We could not update the product right now. Please try again.",500,{retryable:true})}
 }
 
+// Archiving is reversible and available to all authenticated store managers.
 export async function DELETE(req:Request){
- const session=await getAdminSession();
- if(!session)return apiError("SESSION_EXPIRED","Your admin session has expired. Sign in again.",401);
- if(session.role!=="owner")return apiError("NOT_FOUND","Not found.",404);
- const id=new URL(req.url).searchParams.get("id");if(!id)return apiError("PRODUCT_ID_REQUIRED","Choose a product before trying to archive it.",400);
- await sql.query("UPDATE products SET active=false,updated_at=now() WHERE id=$1",[id]);
- return NextResponse.json({ok:true});
+ if(!await getAdminSession())return apiError("SESSION_EXPIRED","Your admin session has expired. Sign in again.",401);
+ const parsed=z.string().uuid().safeParse(new URL(req.url).searchParams.get("id"));
+ if(!parsed.success)return apiError("PRODUCT_ID_INVALID","Choose a valid product.",400);
+ try{
+  const rows=await sql.query("UPDATE products SET active=false,updated_at=now() WHERE id=$1 AND active=true RETURNING id",[parsed.data]);
+  if(!rows.length)return apiError("PRODUCT_NOT_ACTIVE","This product has already been archived or cannot be found. Refresh your inventory.",409);
+  return NextResponse.json({ok:true});
+ }catch(error){
+  console.error("Product archive failed",error);
+  return apiError("PRODUCT_ARCHIVE_FAILED","Could not archive this product. Please retry.",500,{retryable:true});
+ }
+}
+
+// Restore an archived product without changing its image, stock, price or options.
+export async function PATCH(req:Request){
+ if(!await getAdminSession())return apiError("SESSION_EXPIRED","Your admin session has expired. Sign in again.",401);
+ let parsed;
+ try{parsed=z.object({id:z.string().uuid(),active:z.literal(true)}).safeParse(await req.json())}
+ catch{return apiError("INVALID_REQUEST","Select an archived product to restore.",400)}
+ if(!parsed.success)return apiError("INVALID_REQUEST","Select a valid archived product.",400);
+ try{
+  const rows=await sql.query("UPDATE products SET active=true,updated_at=now() WHERE id=$1 AND active=false RETURNING id",[parsed.data.id]);
+  if(!rows.length)return apiError("PRODUCT_NOT_ARCHIVED","This product is already active or cannot be found. Refresh the archive.",409);
+  return NextResponse.json({ok:true});
+ }catch(error){
+  console.error("Product restore failed",error);
+  return apiError("PRODUCT_RESTORE_FAILED","Could not restore this product. Please retry.",500,{retryable:true});
+ }
 }

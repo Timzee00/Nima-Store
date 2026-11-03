@@ -1,7 +1,7 @@
 "use client";
 import Image from"next/image";
 import{uploadProductImage, type ProductImageUploadPhase}from"@/lib/client-product-image-upload";
-import{AlertTriangle,ChevronLeft,ChevronRight,ImagePlus,LogOut,Settings,PackageSearch,PenLine,Plus,RefreshCw,Search,Trash2,X}from"lucide-react";
+import{AlertTriangle,ChevronLeft,ChevronRight,ImagePlus,LogOut,Settings,PackageSearch,PenLine,Plus,RotateCcw,RefreshCw,Search,Trash2,X}from"lucide-react";
 import{useEffect,useState}from"react";
 import{ThemeToggle}from"./theme-toggle";
 import{ProductVariantsEditor,VariantDraft}from"./product-variants-editor";
@@ -12,8 +12,10 @@ import{OrderReceiptTools}from"./order-receipt-tools";
 
 const money=(n:number|string)=>"₦"+Number(n).toLocaleString();
 
-export function AdminDashboard({initialProducts,initialProductTotal,initialOrders,initialOrderTotal,stats,categorySuggestions,canArchive}:{initialProducts:Product[];initialProductTotal:number;initialOrders:Order[];initialOrderTotal:number;stats:{products:number;orders:number;sales:number;lowStock:number};categorySuggestions:{labels:string[];products:number}[];canArchive:boolean}){
+export function AdminDashboard({initialProducts,initialProductTotal,initialOrders,initialOrderTotal,stats,categorySuggestions,canManageAccess,initialArchived}:{initialProducts:Product[];initialProductTotal:number;initialOrders:Order[];initialOrderTotal:number;stats:{products:number;orders:number;sales:number;lowStock:number};categorySuggestions:{labels:string[];products:number}[];canManageAccess:boolean;initialArchived:boolean}){
  const[products,setProducts]=useState(initialProducts),[productTotal,setProductTotal]=useState(initialProductTotal),[productPage,setProductPage]=useState(1),[productSearch,setProductSearch]=useState(""),[productBusy,setProductBusy]=useState(false);
+ const [productActionBusy,setProductActionBusy]=useState<string|null>(null);
+ const archived=initialArchived;
  const[orders,setOrders]=useState(initialOrders),[orderTotal,setOrderTotal]=useState(initialOrderTotal),[orderPage,setOrderPage]=useState(1),[orderSearch,setOrderSearch]=useState(""),[orderStatus,setOrderStatus]=useState(""),[orderBusy,setOrderBusy]=useState(false);
  const[totals,setTotals]=useState(stats),[modal,setModal]=useState<Product|null|false>(false),[selectedOrder,setSelectedOrder]=useState<Order|null>(null),[lowOpen,setLowOpen]=useState(false),[lowProducts,setLowProducts]=useState<Product[]>([]),[lowPage,setLowPage]=useState(1),[lowTotal,setLowTotal]=useState(0),[lowBusy,setLowBusy]=useState(false),[toast,setToast]=useState("");
 
@@ -23,7 +25,7 @@ export function AdminDashboard({initialProducts,initialProductTotal,initialOrder
  async function loadProducts(page=productPage,search=productSearch,signal?:AbortSignal){
   setProductBusy(true);
   try{
-   const q=new URLSearchParams({page:String(page),limit:String(pageSize),search});
+   const q=new URLSearchParams({page:String(page),limit:String(pageSize),search,archived:String(archived)});
    const r=await fetch("/api/admin/products?"+q.toString(),{cache:"no-store",signal});
    const d=await r.json();
    if(!r.ok)throw new Error(d.error||"Could not load products.");
@@ -67,14 +69,24 @@ export function AdminDashboard({initialProducts,initialProductTotal,initialOrder
   flash("Dashboard refreshed.");
  }
 
- async function remove(id:string){
-  const p=products.find(x=>x.id===id);
-  if(!confirm("Archive this product? It will disappear from the storefront."))return;
-  const r=await fetch("/api/admin/products?id="+encodeURIComponent(id),{method:"DELETE"});
-  if(!r.ok){flash("Could not archive the product.");return}
-  setTotals(cur=>({...cur,lowStock:Math.max(0,cur.lowStock-((p?.stock??6)<=5?1:0))}));
-  await loadProducts(productPage,productSearch);
-  flash("Product archived.");
+ async function changeProductVisibility(product:Product){
+  if(productActionBusy)return;
+  const restore=archived;
+  if(!restore&&!window.confirm("Archive "+product.name+"? It will disappear from the storefront until restored."))return;
+  setProductActionBusy(product.id);
+  try{
+   await requestJson<{ok:boolean}>(
+    restore?"/api/admin/products":"/api/admin/products?id="+encodeURIComponent(product.id),
+    restore?{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:product.id,active:true})}:{method:"DELETE"},
+    {timeoutMs:18000,fallback:restore?"Could not restore product.":"Could not archive product."}
+   );
+   if(product.stock<=5)setTotals(cur=>({...cur,lowStock:Math.max(0,cur.lowStock+(restore?1:-1))}));
+   const targetPage=(productTotal-1 <= (productPage-1)*pageSize)?Math.max(1,productPage-1):productPage;
+   if(targetPage!==productPage)setProductPage(targetPage);
+   else await loadProducts(targetPage,productSearch);
+   flash(restore?"Product restored to storefront.":"Product archived. You can restore it from Archived products.");
+  }catch(error){flash(userMessage(error,restore?"Could not restore product.":"Could not archive product."))}
+  finally{setProductActionBusy(null)}
  }
 
  async function changeStatus(id:string,value:string){
@@ -105,10 +117,10 @@ export function AdminDashboard({initialProducts,initialProductTotal,initialOrder
  const lowPages=Math.max(1,Math.ceil(lowTotal/lowPageSize));
 
  return <div className="admin-shell">
-  <AdminNavigation canManageAccess={canArchive}/>
+  <AdminNavigation canManageAccess={canManageAccess}/>
   <div className="admin-top">
    <div><strong>NIMA.</strong><span className="admin-top-sub">Control room</span></div>
-   <div className="admin-top-actions"><ThemeToggle/>{canArchive&&<a href="/admin/access" className="icon-btn" aria-label="Settings" title="Settings"><Settings size={17}/></a>}<button className="icon-btn admin-refresh" onClick={refresh} aria-label="Refresh dashboard"><RefreshCw size={17}/></button><button className="icon-btn admin-logout" onClick={async()=>{await fetch("/api/admin/logout",{method:"POST"});location.href="/admin/login"}} aria-label="Log out"><LogOut size={16}/></button></div>
+   <div className="admin-top-actions"><ThemeToggle/>{canManageAccess&&<a href="/admin/access" className="icon-btn" aria-label="Settings" title="Settings"><Settings size={17}/></a>}<button className="icon-btn admin-refresh" onClick={refresh} aria-label="Refresh dashboard"><RefreshCw size={17}/></button><button className="icon-btn admin-logout" onClick={async()=>{await fetch("/api/admin/logout",{method:"POST"});location.href="/admin/login"}} aria-label="Log out"><LogOut size={16}/></button></div>
   </div>
 
   <main className="admin-main">
@@ -124,10 +136,14 @@ export function AdminDashboard({initialProducts,initialProductTotal,initialOrder
 
    <section id="inventory" className="admin-card admin-section">
     <div className="admin-section-head">
-     <div><div className="eyebrow">Catalog</div><h2>Inventory</h2><p>{productTotal.toLocaleString()} matching products loaded {productSearch?"for this search":"in this view"} — only one page is held in memory.</p></div>
-     <button className="btn" onClick={()=>setModal(null)}><Plus size={16}/> Add product</button>
+     <div><div className="eyebrow">Catalog</div><h2>{archived?"Archived products":"Inventory"}</h2><p>{productTotal.toLocaleString()} {archived?"archived":"active"} products {productSearch?"matching your search": "in this view"} — one page loaded at a time.</p></div>
+     {!archived&&<button className="btn" onClick={()=>setModal(null)}><Plus size={16}/> Add product</button>}
     </div>
     <div className="admin-toolbar">
+     <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+      <a href="/admin#inventory" className={archived?"btn secondary":"btn"} aria-current={!archived?"page":undefined}>Active products</a>
+      <a href="/admin?catalog=archived#inventory" className={archived?"btn":"btn secondary"} aria-current={archived?"page":undefined}>Archived products</a>
+     </div>
      <label className="admin-search"><Search size={17}/><input value={productSearch} onChange={e=>{setProductSearch(e.target.value);setProductPage(1)}} placeholder="Search products, categories or names..." aria-label="Search products"/></label>
      {productBusy&&<span className="admin-loading">Searching...</span>}
     </div>
@@ -175,24 +191,26 @@ export function AdminDashboard({initialProducts,initialProductTotal,initialOrder
               >
                 <PenLine size={14} />
               </button>
-              {canArchive&&<button
+              <button type="button"
                 className="icon-btn"
-                onClick={() => remove(product.id)}
-                aria-label={"Archive " + product.name}
+                disabled={productActionBusy!==null}
+                onClick={() => changeProductVisibility(product)}
+                aria-label={(archived?"Restore ":"Archive ")+product.name}
+                title={archived?"Restore product":"Archive product"}
               >
-                <Trash2 size={14} />
-              </button>}
+                {archived?<RotateCcw size={14}/>:<Trash2 size={14}/>}
+              </button>
             </div>
           </td>
         </tr>
       ))}
-      {!products.length&&!productBusy&&<tr><td colSpan={5}><div className="admin-empty"><PackageSearch size={24}/><strong>No products found</strong><span>Try a different search.</span></div></td></tr>}
+      {!products.length&&!productBusy&&<tr><td colSpan={5}><div className="admin-empty"><PackageSearch size={24}/><strong>{archived?"No archived products":"No products found"}</strong><span>{archived?"Archived products will appear here. Try another search, or return to the active inventory.":"Try a different search."}</span></div></td></tr>}
      </tbody></table></div>
     </div>
 
     <div className="mobile-only-admin">
-     <div className="admin-mobile-list">{products.map(p=><article className="admin-mobile-card" key={p.id}><div className="admin-mobile-card-main"><div className="admin-list-thumb mobile-thumb">{p.images[0]&&<Image src={p.images[0]} alt="" fill sizes="62px" unoptimized style={{objectFit:"cover"}}/>}</div><div className="admin-mobile-copy"><strong>{p.name}</strong><span>{p.category} · {money(p.salePrice??p.price)}</span><span className={p.stock<=5?"stock-warning":""}>Stock: {p.stock.toLocaleString()}</span></div></div><div className="admin-mobile-actions"><button className="btn secondary" onClick={()=>setModal(p)}><PenLine size={14}/> Edit</button>{canArchive&&<button className="icon-btn" onClick={()=>remove(p.id)} aria-label={"Archive "+p.name}><Trash2 size={14}/></button>}</div></article>)}
-      {!products.length&&!productBusy&&<div className="admin-empty"><PackageSearch size={24}/><strong>No products found</strong><span>Try a different search.</span></div>}
+     <div className="admin-mobile-list">{products.map(p=><article className="admin-mobile-card" key={p.id}><div className="admin-mobile-card-main"><div className="admin-list-thumb mobile-thumb">{p.images[0]&&<Image src={p.images[0]} alt="" fill sizes="62px" unoptimized style={{objectFit:"cover"}}/>}</div><div className="admin-mobile-copy"><strong>{p.name}</strong><span>{p.category} · {money(p.salePrice??p.price)}</span><span className={p.stock<=5?"stock-warning":""}>Stock: {p.stock.toLocaleString()}</span></div></div><div className="admin-mobile-actions"><button className="btn secondary" onClick={()=>setModal(p)}><PenLine size={14}/> Edit</button><button type="button" className="btn secondary" disabled={productActionBusy!==null} onClick={()=>changeProductVisibility(p)} aria-label={(archived?"Restore ":"Archive ")+p.name}>{archived?<RotateCcw size={14}/>:<Trash2 size={14}/>}{archived?" Restore":" Archive"}</button></div></article>)}
+      {!products.length&&!productBusy&&<div className="admin-empty"><PackageSearch size={24}/><strong>{archived?"No archived products":"No products found"}</strong><span>{archived?"Archived products will appear here. Try another search.":"Try a different search."}</span></div>}
      </div>
     </div>
 
@@ -226,7 +244,7 @@ export function AdminDashboard({initialProducts,initialProductTotal,initialOrder
    </section>
   </main>
 
-  {modal!==false&&<ProductModal existing={modal||undefined} close={()=>setModal(false)} onSaved={async p=>{setModal(false);if(modal){setProducts(cur=>cur.map(x=>x.id===p.id?p:x));flash("Product updated.");}else{setTotals(cur=>({...cur,products:cur.products+1}));setProductPage(1);await loadProducts(1,productSearch);flash("Product added.");}}}/>}
+  {modal!==false&&<ProductModal existing={modal||undefined} close={()=>setModal(false)} onSaved={async _p=>{setModal(false);if(modal){await loadProducts(productPage,productSearch);flash("Product updated.");}else{setTotals(cur=>({...cur,products:cur.products+1}));setProductPage(1);await loadProducts(1,productSearch);flash("Product added.");}}}/>}
   {selectedOrder&&<OrderDetail order={selectedOrder} close={()=>setSelectedOrder(null)} onStatusChange={value=>changeStatus(selectedOrder.id,value)}/>}
   {lowOpen&&<LowStockModal page={lowPage} pages={lowPages} products={lowProducts} total={lowTotal} busy={lowBusy} onClose={()=>setLowOpen(false)} onPrev={()=>{const p=Math.max(1,lowPage-1);setLowPage(p);loadLowStock(p)}} onNext={()=>{const p=Math.min(lowPages,lowPage+1);setLowPage(p);loadLowStock(p)}} onEdit={p=>{setLowOpen(false);setModal(p)}}/>}
   <div className={"toast "+(toast?"show":"")}>{toast}</div>
