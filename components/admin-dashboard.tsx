@@ -1,6 +1,6 @@
 "use client";
 import Image from"next/image";
-import{upload}from"@vercel/blob/client";
+import{uploadProductImage, type ProductImageUploadPhase}from"@/lib/client-product-image-upload";
 import{AlertTriangle,ChevronLeft,ChevronRight,ImagePlus,LogOut,PackageSearch,PenLine,Plus,RefreshCw,Search,Trash2,X}from"lucide-react";
 import{useEffect,useState}from"react";
 import{ThemeToggle}from"./theme-toggle";
@@ -262,7 +262,7 @@ function ProductModal({existing,close,onSaved}:{existing?:Product;close:()=>void
  const[variants,setVariants]=useState<VariantDraft[]>((existing?.variants||[]).map(v=>({id:v.id,options:v.options,price:Number(v.price),stock:v.stock,sku:v.sku||""})));
  const[variantsEnabled,setVariantsEnabled]=useState(!!(existing?.variants||[]).length);
  const[busy,setBusy]=useState(false),[error,setError]=useState("");
- const[uploadProgress,setUploadProgress]=useState<{current:number;total:number;percentage:number;phase:"checking"|"uploading"}|null>(null);
+ const[uploadProgress,setUploadProgress]=useState<{current:number;total:number;percentage:number;phase:ProductImageUploadPhase}|null>(null);
  function chooseFiles(list:FileList|null){
   if(!list)return;
   const picked=Array.from(list),valid=picked.filter(file=>["image/jpeg","image/png","image/webp"].includes(file.type)&&file.size<=4*1024*1024);
@@ -290,32 +290,23 @@ function ProductModal({existing,close,onSaved}:{existing?:Product;close:()=>void
   try{
    let allImages=[...images];
    if(files.length){
-    setUploadProgress({current:0,total:files.length,percentage:0,phase:"checking"});
-    await requestJson<{ok:boolean}>("/api/admin/upload",{method:"GET"},{timeoutMs:12000,fallback:"Image storage could not be reached."});
-    for(let index=0;index<files.length;index++){
-     const file=files[index];
+    // Keep every successful image in the form so a later failure never forces a re-upload.
+    const pendingFiles=[...files];
+    for(let index=0;index<pendingFiles.length;index++){
+     const file=pendingFiles[index];
      const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,"-")||"product-image";
-     const controller=new AbortController();
-     let lastLoaded=0,lastMovement=Date.now(),stalled=false;
-     const stallTimer=window.setInterval(()=>{
-      if(Date.now()-lastMovement>60000){stalled=true;controller.abort()}
-     },5000);
-     try{
-      setUploadProgress({current:index+1,total:files.length,percentage:0,phase:"uploading"});
-      const blob=await upload("nima/products/"+Date.now()+"-"+safe,file,{
-       access:"public",
-       handleUploadUrl:"/api/admin/upload",
-       abortSignal:controller.signal,
-       onUploadProgress:({loaded,percentage})=>{
-        if(loaded>lastLoaded){lastLoaded=loaded;lastMovement=Date.now()}
-        setUploadProgress({current:index+1,total:files.length,percentage:Math.max(0,Math.min(100,Math.round(percentage))),phase:"uploading"})
-       }
-      });
-      allImages.push(blob.url);
-     }catch(cause){
-      if(stalled)throw new Error("Image "+(index+1)+" stopped making progress for 60 seconds. Check your connection and try again.");
-      throw cause;
-     }finally{window.clearInterval(stallTimer)}
+     const pathname="nima/products/"+Date.now()+"-"+safe;
+     const blobUrl=await uploadProductImage(file,pathname,(percentage,phase)=>{
+      setUploadProgress({current:index+1,total:pendingFiles.length,percentage,phase});
+     });
+     allImages.push(blobUrl);
+     setImages([...allImages]);
+     setFiles(current=>{
+      const next=[...current];
+      const position=next.indexOf(file);
+      if(position>=0)next.splice(position,1);
+      return next;
+     });
     }
     setUploadProgress(null);
    }
@@ -334,14 +325,14 @@ function ProductModal({existing,close,onSaved}:{existing?:Product;close:()=>void
    <div className="field"><label>Price (₦)</label><input required type="number" min="0" value={form.price} onChange={event=>setForm({...form,price:event.target.value})}/></div>
    <div className="field"><label>Sale price (₦)</label><input type="number" min="0" value={form.salePrice} onChange={event=>setForm({...form,salePrice:event.target.value})}/></div>
    <div className="field"><label>Stock {variantsEnabled&&<span className="muted-inline">calculated from options</span>}</label><input required type="number" min="0" value={form.stock} disabled={variantsEnabled} onChange={event=>setForm({...form,stock:event.target.value})}/></div>
-   <div className="field full"><label>Product images</label><input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={busy} onChange={event=>chooseFiles(event.target.files)}/><span className="helper-text">Up to 6 JPG, PNG or WebP images, 4 MB each. Images upload directly and the first image is the main storefront image.</span></div>
-   {(images.length>0||files.length>0)&&<div className="field full"><div className="admin-image-grid">{images.map((image,index)=><div className="admin-image-item" key={image+index}><Image src={image} alt={"Product image "+(index+1)} fill sizes="110px" unoptimized style={{objectFit:"cover"}}/><button type="button" className="admin-image-remove" onClick={()=>removeImage(index)} aria-label={"Remove image "+(index+1)}><X size={13}/></button>{index===0&&<span className="admin-image-label">Main</span>}</div>)}{files.map((file,index)=><div className="admin-image-item file-preview" key={file.name+index}><div><ImagePlus size={22}/><span>{file.name}</span></div><button type="button" className="admin-image-remove" onClick={()=>removeFile(index)} aria-label={"Remove selected image "+(index+1)}><X size={13}/></button>{images.length===0&&index===0&&<span className="admin-image-label">Main</span>}</div>)}</div></div>}
+   <div className="field full"><label>Product images</label><input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={busy} onChange={event=>chooseFiles(event.target.files)}/><span className="helper-text">Up to 6 JPG, PNG or WebP images, 4 MB each. Images upload securely and the first image is the main storefront image.</span></div>
+   {(images.length>0||files.length>0)&&<div className="field full"><div className="admin-image-grid">{images.map((image,index)=><div className="admin-image-item" key={image+index}><Image src={image} alt={"Product image "+(index+1)} fill sizes="110px" unoptimized style={{objectFit:"cover"}}/><button type="button" className="admin-image-remove" onClick={()=>removeImage(index)} disabled={busy} aria-label={"Remove image "+(index+1)}><X size={13}/></button>{index===0&&<span className="admin-image-label">Main</span>}</div>)}{files.map((file,index)=><div className="admin-image-item file-preview" key={file.name+index}><div><ImagePlus size={22}/><span>{file.name}</span></div><button type="button" className="admin-image-remove" onClick={()=>removeFile(index)} disabled={busy} aria-label={"Remove selected image "+(index+1)}><X size={13}/></button>{images.length===0&&index===0&&<span className="admin-image-label">Main</span>}</div>)}</div></div>}
    <div className="field full"><label>Image URLs (optional)</label><textarea rows={3} placeholder="Paste one image URL per line" value={images.join("\n")} onChange={event=>setImages(event.target.value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).slice(0,6-files.length))}/></div>
    <div className="field full"><ProductVariantsEditor enabled={variantsEnabled} onEnabledChange={setVariantsEnabled} value={variants} onChange={setVariants} basePrice={Number(form.price)||0}/></div>
-   {uploadProgress&&<div className="field full"><div className="upload-progress-card" role="status" aria-live="polite"><div className="upload-progress-head"><span>{uploadProgress.phase==="checking"?"Preparing secure image upload…":"Uploading image "+uploadProgress.current+" of "+uploadProgress.total}</span><strong>{uploadProgress.phase==="checking"?"Checking":uploadProgress.percentage+"%"}</strong></div><div className="upload-progress-track" aria-hidden="true"><span style={{width:(uploadProgress.phase==="checking"?8:uploadProgress.percentage)+"%"}}/></div><small>{uploadProgress.phase==="checking"?"Checking your session and image storage connection.":"Keep this page open while the image uploads. If progress stops for 60 seconds, NIMA will stop and show an error instead of loading forever."}</small></div></div>}
+   {uploadProgress&&<div className="field full"><div className="upload-progress-card" role="status" aria-live="polite"><div className="upload-progress-head"><span>{uploadProgress.phase==="saving"?"Saving image "+uploadProgress.current+" of "+uploadProgress.total:uploadProgress.phase==="retrying"?"Trying alternate connection for image "+uploadProgress.current:"Uploading image "+uploadProgress.current+" of "+uploadProgress.total}</span><strong>{uploadProgress.percentage+"%"}</strong></div><div className="upload-progress-track" aria-hidden="true"><span style={{width:uploadProgress.percentage+"%"}}/></div><small>{"Keep this page open until saving finishes. Successfully uploaded images stay in the form if another image fails."}</small></div></div>}
    {error&&<div className="field full"><div className="site-notice" role="alert"><div><strong>NIMA.</strong><span>{error}</span></div><button type="button" onClick={()=>setError("")} aria-label="Dismiss error"><X size={15}/></button></div></div>}
    <label className="full" style={{display:"flex",alignItems:"center",gap:8,fontSize:13}}><input type="checkbox" checked={form.featured} onChange={event=>setForm({...form,featured:event.target.checked})}/> Feature this product</label>
-   <div className="full product-modal-actions"><button type="button" className="btn secondary" onClick={close} disabled={busy}>Cancel</button><button className="btn" disabled={busy}>{uploadProgress?(uploadProgress.phase==="checking"?"Preparing upload…":"Uploading "+uploadProgress.percentage+"%"):busy?"Saving...":existing?"Save changes":"Add product"}</button></div>
+   <div className="full product-modal-actions"><button type="button" className="btn secondary" onClick={close} disabled={busy}>Cancel</button><button className="btn" disabled={busy}>{uploadProgress?(uploadProgress.phase==="retrying"?"Retrying upload…":uploadProgress.phase==="saving"?"Saving image…":"Uploading "+uploadProgress.percentage+"%"):busy?"Saving...":existing?"Save changes":"Add product"}</button></div>
   </form>
  </div></div>;
 }
